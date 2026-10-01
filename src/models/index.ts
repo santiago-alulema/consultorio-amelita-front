@@ -1,0 +1,3 @@
+export interface UsuarioSesion { id:number; nombreUsuario:string; nombre:string; roles:string[]; permisos:string[] }
+export interface Paciente { id:number; identificacion:string; nombres:string; apellidos:string; fechaNacimiento?:string; sexo?:string; tipoSangre?:string; telefono?:string; email?:string; direccion?:string; contactoEmergencia?:string; telefonoEmergencia?:string }
+export interface Producto { id:number; codigo:string; nombre:string; laboratorio?:string; presentacion?:string; concentracion?:string; unidadMedida?:string; precioCompra:number; precioVenta:number; stockMinimo:number; stock:number; estado:string; proximaCaducidad?:string }
