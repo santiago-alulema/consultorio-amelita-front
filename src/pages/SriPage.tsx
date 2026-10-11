@@ -1,2 +1,193 @@
-import { useEffect,useState } from 'react';import { Button,FileInput,Group,Modal,Select,Table,Text,Title } from '@mantine/core';import { useDisclosure } from '@mantine/hooks';import { api } from '../api/api';
-export default function SriPage(){const[data,setData]=useState<any[]>([]),[productos,setProductos]=useState<any[]>([]),[xml,setXml]=useState<File|null>(null),[pdf,setPdf]=useState<File|null>(null);const[opened,{open,close}]=useDisclosure();const load=()=>api.get('/documentos-sri').then(r=>setData(r.data));useEffect(()=>{load();api.get('/productos').then(r=>setProductos(r.data));},[]);async function subir(){if(!xml)return;const fd=new FormData();fd.append('xml',xml);if(pdf)fd.append('ridePdf',pdf);await api.post('/documentos-sri/subir',fd);close();setXml(null);setPdf(null);load();}async function relacionar(detalleId:number,productoId:string|null){if(productoId)await api.patch(`/documentos-sri/detalle/${detalleId}/producto/${productoId}`);load();}async function procesar(id:number){await api.post(`/documentos-sri/${id}/procesar-stock`);load();}return <><Group justify="space-between" mb="md"><Title order={2}>Facturas SRI - XML / RIDE</Title><Button onClick={open}>Subir factura</Button></Group>{data.map(doc=><div key={doc.id} style={{marginBottom:24}}><Group justify="space-between"><div><Text fw={700}>{doc.numeroFactura} - {doc.razonSocialEmisor}</Text><Text size="sm" c="dimmed">{new Date(doc.fechaEmision).toLocaleDateString()} · Total ${doc.total}</Text></div><Button size="xs" disabled={doc.inventarioProcesado} onClick={()=>procesar(doc.id)}>{doc.inventarioProcesado?'Stock procesado':'Descontar stock'}</Button></Group><Table withTableBorder mt="xs"><Table.Thead><Table.Tr><Table.Th>Código XML</Table.Th><Table.Th>Descripción</Table.Th><Table.Th>Cantidad</Table.Th><Table.Th>Producto relacionado</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{doc.detalles.map((d:any)=><Table.Tr key={d.id}><Table.Td>{d.codigoPrincipal}</Table.Td><Table.Td>{d.descripcion}</Table.Td><Table.Td>{d.cantidad}</Table.Td><Table.Td><Select searchable clearable data={productos.map(x=>({value:String(x.id),label:`${x.codigo} - ${x.nombre}`}))} value={d.productoId?String(d.productoId):null} onChange={v=>relacionar(d.id,v)}/></Table.Td></Table.Tr>)}</Table.Tbody></Table></div>)}<Modal opened={opened} onClose={close} title="Subir XML y RIDE"><FileInput label="XML de la factura" accept=".xml,text/xml" value={xml} onChange={setXml}/><FileInput mt="sm" label="RIDE PDF" accept=".pdf,application/pdf" value={pdf} onChange={setPdf}/><Button fullWidth mt="md" onClick={subir}>Guardar factura</Button></Modal></>}
+import {
+    Badge,
+    Button,
+    Card,
+    FileInput,
+    Group,
+    Modal,
+    Select,
+    Stack,
+    Table,
+    Text,
+    Title,
+} from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import { IconFileInvoice, IconUpload } from '@tabler/icons-react';
+import { useEffect, useState } from 'react';
+import { api } from '../api/api';
+
+export default function SriPage() {
+    const [data, setData] = useState<any[]>([]);
+    const [productos, setProductos] = useState<any[]>([]);
+    const [xml, setXml] = useState<File | null>(null);
+    const [pdf, setPdf] = useState<File | null>(null);
+    const [opened, { open, close }] = useDisclosure();
+
+    const load = async () => {
+        const [documentosResponse, productosResponse] = await Promise.all([
+            api.get('/documentos-sri'),
+            api.get('/productos'),
+        ]);
+
+        setData(documentosResponse.data);
+        setProductos(productosResponse.data);
+    };
+
+    useEffect(() => {
+        load();
+    }, []);
+
+    async function subirFactura() {
+        if (!xml) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('xml', xml);
+
+        if (pdf) {
+            formData.append('ridePdf', pdf);
+        }
+
+        await api.post('/documentos-sri/subir', formData);
+        close();
+        setXml(null);
+        setPdf(null);
+        await load();
+    }
+
+    async function relacionar(detalleId: number, productoId: string | null) {
+        if (!productoId) {
+            return;
+        }
+
+        await api.patch(`/documentos-sri/detalle/${detalleId}/producto/${productoId}`);
+        await load();
+    }
+
+    async function procesarStock(id: number) {
+        await api.post(`/documentos-sri/${id}/procesar-stock`);
+        await load();
+    }
+
+    return (
+        <>
+            <div className="page-header">
+                <div>
+                    <Title order={2}>Facturas SRI · XML / RIDE</Title>
+                    <Text className="page-subtitle">
+                        Carga la factura emitida en SRI, relaciona sus ítems y descuenta el stock una sola vez.
+                    </Text>
+                </div>
+
+                <Button leftSection={<IconUpload size={17} />} onClick={open}>
+                    Subir factura
+                </Button>
+            </div>
+
+            <Stack gap="md">
+                {data.map((documento) => (
+                    <Card key={documento.id} withBorder radius="md">
+                        <Group justify="space-between" align="flex-start" mb="md">
+                            <div>
+                                <Group gap="xs">
+                                    <IconFileInvoice size={20} />
+                                    <Text fw={700}>{documento.numeroFactura}</Text>
+                                    <Badge color={documento.inventarioProcesado ? 'green' : 'yellow'}>
+                                        {documento.inventarioProcesado
+                                            ? 'Stock procesado'
+                                            : 'Pendiente de stock'}
+                                    </Badge>
+                                </Group>
+                                <Text size="sm" c="dimmed" mt={4}>
+                                    {documento.razonSocialEmisor} · {new Date(documento.fechaEmision).toLocaleDateString()} · Total ${Number(documento.total).toFixed(2)}
+                                </Text>
+                            </div>
+
+                            <Button
+                                size="sm"
+                                variant={documento.inventarioProcesado ? 'default' : 'light'}
+                                disabled={documento.inventarioProcesado}
+                                onClick={() => procesarStock(documento.id)}
+                            >
+                                {documento.inventarioProcesado
+                                    ? 'Inventario actualizado'
+                                    : 'Descontar stock'}
+                            </Button>
+                        </Group>
+
+                        <div className="table-wrapper">
+                            <Table striped highlightOnHover>
+                                <Table.Thead>
+                                    <Table.Tr>
+                                        <Table.Th>Código XML</Table.Th>
+                                        <Table.Th>Descripción</Table.Th>
+                                        <Table.Th>Cantidad</Table.Th>
+                                        <Table.Th>Producto relacionado</Table.Th>
+                                    </Table.Tr>
+                                </Table.Thead>
+                                <Table.Tbody>
+                                    {documento.detalles.map((detalle: any) => (
+                                        <Table.Tr key={detalle.id}>
+                                            <Table.Td>{detalle.codigoPrincipal}</Table.Td>
+                                            <Table.Td>{detalle.descripcion}</Table.Td>
+                                            <Table.Td>{detalle.cantidad}</Table.Td>
+                                            <Table.Td>
+                                                <Select
+                                                    searchable
+                                                    clearable
+                                                    placeholder="Relacionar producto"
+                                                    data={productos.map((producto) => ({
+                                                        value: String(producto.id),
+                                                        label: `${producto.codigo} - ${producto.nombre}`,
+                                                    }))}
+                                                    value={detalle.productoId
+                                                        ? String(detalle.productoId)
+                                                        : null}
+                                                    onChange={(value) => relacionar(detalle.id, value)}
+                                                    disabled={documento.inventarioProcesado}
+                                                />
+                                            </Table.Td>
+                                        </Table.Tr>
+                                    ))}
+                                </Table.Tbody>
+                            </Table>
+                        </div>
+                    </Card>
+                ))}
+
+                {data.length === 0 && (
+                    <Card withBorder radius="md" py="xl">
+                        <Text ta="center" c="dimmed">
+                            Todavía no se han cargado facturas SRI.
+                        </Text>
+                    </Card>
+                )}
+            </Stack>
+
+            <Modal opened={opened} onClose={close} title="Subir XML y RIDE" centered>
+                <Stack>
+                    <FileInput
+                        label="XML de la factura"
+                        description="Archivo XML autorizado por el SRI."
+                        accept=".xml,text/xml"
+                        value={xml}
+                        onChange={setXml}
+                        required
+                    />
+                    <FileInput
+                        label="RIDE PDF"
+                        description="Opcional. Se conservará junto con el XML."
+                        accept=".pdf,application/pdf"
+                        value={pdf}
+                        onChange={setPdf}
+                    />
+                    <Group justify="flex-end">
+                        <Button variant="default" onClick={close}>Cancelar</Button>
+                        <Button onClick={subirFactura} disabled={!xml}>Guardar factura</Button>
+                    </Group>
+                </Stack>
+            </Modal>
+        </>
+    );
+}

@@ -1,1 +1,87 @@
-html,body,#root{min-height:100%;margin:0}body{background:#f7f9fa}.mantine-Table-table{background:white}
+html,
+body,
+#root {
+    min-height: 100%;
+    margin: 0;
+}
+
+body {
+    background: #f4f7fa;
+    color: #1f2937;
+}
+
+.page-container {
+    width: 100%;
+    max-width: 1500px;
+    margin: 0 auto;
+}
+
+.page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.page-subtitle {
+    color: var(--mantine-color-dimmed);
+    margin-top: 3px;
+}
+
+.panel-card {
+    background: white;
+    border: 1px solid var(--mantine-color-gray-2);
+    border-radius: var(--mantine-radius-md);
+}
+
+.table-wrapper {
+    overflow-x: auto;
+    background: white;
+    border: 1px solid var(--mantine-color-gray-2);
+    border-radius: var(--mantine-radius-md);
+}
+
+.table-wrapper .mantine-Table-table {
+    min-width: 760px;
+    background: white;
+}
+
+.logout-button {
+    width: 100%;
+    border-radius: var(--mantine-radius-sm);
+}
+
+.logout-button:hover {
+    background: var(--mantine-color-red-0);
+    color: var(--mantine-color-red-8);
+}
+
+.detail-field {
+    padding: 10px 12px;
+    border-radius: var(--mantine-radius-sm);
+    background: var(--mantine-color-gray-0);
+}
+
+@media (max-width: 48em) {
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .page-header > * {
+        width: 100%;
+    }
+
+    .page-header .mantine-Group-root {
+        justify-content: stretch;
+    }
+
+    .page-header .mantine-Button-root {
+        flex: 1;
+    }
+
+    .table-wrapper .mantine-Table-table {
+        min-width: 680px;
+    }
+}

@@ -1,5 +1,7 @@
 import {
+    Badge,
     Button,
+    Card,
     Divider,
     Group,
     Modal,
@@ -14,13 +16,19 @@ import {
     Title,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconEye, IconNotes, IconUserPlus } from '@tabler/icons-react';
+import {
+    IconEye,
+    IconNotes,
+    IconPlus,
+    IconUserPlus,
+} from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/api';
 
 const consultaVacia = {
     pacienteId: '',
+    citaId: null as string | null,
     motivoConsulta: '',
     enfermedadActual: '',
     pesoKg: '',
@@ -35,6 +43,7 @@ const consultaVacia = {
     indicaciones: '',
     observaciones: '',
     valorConsulta: 0,
+    formaPago: 'Efectivo',
 };
 
 const pacienteVacio = {
@@ -51,33 +60,20 @@ const pacienteVacio = {
     telefonoEmergencia: '',
 };
 
-const camposPaciente = [
-    ['identificacion', 'Identificación'],
-    ['nombres', 'Nombres'],
-    ['apellidos', 'Apellidos'],
-    ['fechaNacimiento', 'Fecha nacimiento'],
-    ['sexo', 'Sexo'],
-    ['tipoSangre', 'Tipo sangre'],
-    ['telefono', 'Teléfono'],
-    ['email', 'Email'],
-    ['direccion', 'Dirección'],
-    ['contactoEmergencia', 'Contacto emergencia'],
-    ['telefonoEmergencia', 'Teléfono emergencia'],
-] as const;
-
 function CampoConsulta({ label, value }: { label: string; value: unknown }) {
     return (
-        <div>
-            <Text size="sm" c="dimmed">
+        <div className="detail-field">
+            <Text size="xs" c="dimmed" fw={600}>
                 {label}
             </Text>
-            <Text fw={500}>{value || '-'}</Text>
+            <Text style={{ whiteSpace: 'pre-wrap' }}>{value || '-'}</Text>
         </div>
     );
 }
 
 export default function ConsultasPage() {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const [data, setData] = useState<any[]>([]);
     const [pacientes, setPacientes] = useState<any[]>([]);
     const [form, setForm] = useState<any>(consultaVacia);
@@ -103,6 +99,27 @@ export default function ConsultasPage() {
         loadPacientes();
     }, []);
 
+    useEffect(() => {
+        if (searchParams.get('nueva') !== '1') {
+            return;
+        }
+
+        setForm({
+            ...consultaVacia,
+            pacienteId: searchParams.get('pacienteId') ?? '',
+            citaId: searchParams.get('citaId'),
+        });
+        open();
+    }, [searchParams]);
+
+    function cerrarConsulta() {
+        close();
+
+        if (searchParams.get('nueva')) {
+            setSearchParams({}, { replace: true });
+        }
+    }
+
     function nuevaConsulta() {
         setForm(consultaVacia);
         open();
@@ -120,25 +137,31 @@ export default function ConsultasPage() {
         });
 
         await loadPacientes();
-
         setForm((actual: any) => ({
             ...actual,
             pacienteId: String(response.data.id),
         }));
-
         closePaciente();
     }
 
-    async function guardarConsulta() {
-        await api.post('/consultas', {
+    async function guardarConsulta(emitirReceta = false) {
+        const response = await api.post('/consultas', {
             ...form,
             pacienteId: Number(form.pacienteId),
+            citaId: form.citaId ? Number(form.citaId) : null,
             fechaConsulta: new Date().toISOString(),
         });
 
-        close();
+        const consultaId = Number(response.data.id);
+        const pacienteId = Number(form.pacienteId);
+
+        cerrarConsulta();
         setForm(consultaVacia);
         await loadConsultas();
+
+        if (emitirReceta) {
+            navigate(`/recetas?nueva=1&pacienteId=${pacienteId}&consultaId=${consultaId}`);
+        }
     }
 
     async function verConsulta(id: number) {
@@ -147,7 +170,12 @@ export default function ConsultasPage() {
         openDetalle();
     }
 
-    function emitirReceta(consulta: any) {
+    function abrirReceta(consulta: any) {
+        if (consulta.recetaId) {
+            navigate(`/recetas?ver=${consulta.recetaId}`);
+            return;
+        }
+
         navigate(
             `/recetas?nueva=1&pacienteId=${consulta.pacienteId}&consultaId=${consulta.id}`,
         );
@@ -155,219 +183,272 @@ export default function ConsultasPage() {
 
     return (
         <>
-            <Group justify="space-between" mb="md">
-                <Title order={2}>Consultas</Title>
-                <Button onClick={nuevaConsulta}>Registrar consulta</Button>
-            </Group>
+            <div className="page-header">
+                <div>
+                    <Title order={2}>Consultas</Title>
+                    <Text className="page-subtitle">
+                        Registra la atención completa y emite la receta sin salir del flujo de consulta.
+                    </Text>
+                </div>
 
-            <Table striped withTableBorder highlightOnHover>
-                <Table.Thead>
-                    <Table.Tr>
-                        <Table.Th>Fecha</Table.Th>
-                        <Table.Th>Paciente</Table.Th>
-                        <Table.Th>Motivo</Table.Th>
-                        <Table.Th>Diagnóstico</Table.Th>
-                        <Table.Th>Valor</Table.Th>
-                        <Table.Th>Acciones</Table.Th>
-                    </Table.Tr>
-                </Table.Thead>
+                <Button leftSection={<IconPlus size={17} />} onClick={nuevaConsulta}>
+                    Registrar consulta
+                </Button>
+            </div>
 
-                <Table.Tbody>
-                    {data.map((consulta) => (
-                        <Table.Tr key={consulta.id}>
-                            <Table.Td>
-                                {new Date(consulta.fechaConsulta).toLocaleString()}
-                            </Table.Td>
-                            <Table.Td>{consulta.paciente}</Table.Td>
-                            <Table.Td>{consulta.motivoConsulta}</Table.Td>
-                            <Table.Td>{consulta.diagnostico}</Table.Td>
-                            <Table.Td>${consulta.valorConsulta}</Table.Td>
-                            <Table.Td>
-                                <Group gap="xs">
-                                    <Button
-                                        size="xs"
-                                        variant="default"
-                                        leftSection={<IconEye size={16} />}
-                                        onClick={() => verConsulta(consulta.id)}
-                                    >
-                                        Ver
-                                    </Button>
-
-                                    <Button
-                                        size="xs"
-                                        variant="light"
-                                        leftSection={<IconNotes size={16} />}
-                                        onClick={() => emitirReceta(consulta)}
-                                    >
-                                        Emitir receta
-                                    </Button>
-                                </Group>
-                            </Table.Td>
+            <div className="table-wrapper">
+                <Table striped highlightOnHover>
+                    <Table.Thead>
+                        <Table.Tr>
+                            <Table.Th>Fecha</Table.Th>
+                            <Table.Th>Paciente</Table.Th>
+                            <Table.Th>Motivo</Table.Th>
+                            <Table.Th>Diagnóstico</Table.Th>
+                            <Table.Th>Valor</Table.Th>
+                            <Table.Th>Receta</Table.Th>
+                            <Table.Th>Acciones</Table.Th>
                         </Table.Tr>
-                    ))}
-                </Table.Tbody>
-            </Table>
+                    </Table.Thead>
 
-            <Modal opened={opened} onClose={close} title="Nueva consulta" size="xl">
-                <Group align="flex-end" mb="md" wrap="nowrap">
-                    <Select
-                        searchable
-                        clearable
-                        label="Paciente"
-                        placeholder="Busque por cédula o nombre"
-                        data={pacientes.map((paciente) => ({
-                            value: String(paciente.id),
-                            label: `${paciente.identificacion} - ${paciente.nombres} ${paciente.apellidos}`,
-                        }))}
-                        value={form.pacienteId}
-                        onChange={(value) =>
-                            setForm({ ...form, pacienteId: value ?? '' })
-                        }
-                        style={{ flex: 1 }}
-                    />
+                    <Table.Tbody>
+                        {data.map((consulta) => (
+                            <Table.Tr key={consulta.id}>
+                                <Table.Td>
+                                    {new Date(consulta.fechaConsulta).toLocaleString()}
+                                </Table.Td>
+                                <Table.Td>{consulta.paciente}</Table.Td>
+                                <Table.Td>{consulta.motivoConsulta}</Table.Td>
+                                <Table.Td>{consulta.diagnostico || '-'}</Table.Td>
+                                <Table.Td>${Number(consulta.valorConsulta).toFixed(2)}</Table.Td>
+                                <Table.Td>
+                                    <Badge color={consulta.recetaId ? 'green' : 'gray'}>
+                                        {consulta.recetaId ? 'Emitida' : 'Pendiente'}
+                                    </Badge>
+                                </Table.Td>
+                                <Table.Td>
+                                    <Group gap="xs" wrap="nowrap">
+                                        <Button
+                                            size="xs"
+                                            variant="default"
+                                            leftSection={<IconEye size={15} />}
+                                            onClick={() => verConsulta(consulta.id)}
+                                        >
+                                            Ver
+                                        </Button>
+                                        <Button
+                                            size="xs"
+                                            variant="light"
+                                            leftSection={<IconNotes size={15} />}
+                                            onClick={() => abrirReceta(consulta)}
+                                        >
+                                            {consulta.recetaId ? 'Ver receta' : 'Emitir receta'}
+                                        </Button>
+                                    </Group>
+                                </Table.Td>
+                            </Table.Tr>
+                        ))}
+                    </Table.Tbody>
+                </Table>
+            </div>
 
-                    <Button
-                        variant="light"
-                        leftSection={<IconUserPlus size={17} />}
-                        onClick={nuevoPaciente}
-                    >
-                        Nuevo paciente
-                    </Button>
-                </Group>
+            <Modal
+                opened={opened}
+                onClose={cerrarConsulta}
+                title="Registrar consulta"
+                size="xl"
+            >
+                <Stack gap="md">
+                    {form.citaId && (
+                        <Badge variant="light" size="lg" w="fit-content">
+                            Consulta vinculada a cita #{form.citaId}
+                        </Badge>
+                    )}
 
-                <SimpleGrid cols={{ base: 1, sm: 2 }}>
-                    <NumberInput
-                        label="Valor consulta"
-                        decimalScale={2}
-                        value={form.valorConsulta}
-                        onChange={(value) => setForm({ ...form, valorConsulta: value })}
-                    />
+                    <Card withBorder radius="md">
+                        <Text fw={700} mb="sm">Paciente</Text>
+                        <Group align="flex-end" wrap="wrap">
+                            <Select
+                                searchable
+                                clearable
+                                label="Paciente"
+                                placeholder="Buscar por cédula o nombre"
+                                data={pacientes.map((paciente) => ({
+                                    value: String(paciente.id),
+                                    label: `${paciente.identificacion} - ${paciente.nombres} ${paciente.apellidos}`,
+                                }))}
+                                value={form.pacienteId}
+                                onChange={(value) =>
+                                    setForm({ ...form, pacienteId: value ?? '' })
+                                }
+                                style={{ flex: 1, minWidth: 240 }}
+                            />
 
-                    <TextInput
-                        label="Motivo"
-                        value={form.motivoConsulta}
-                        onChange={(event) =>
-                            setForm({
-                                ...form,
-                                motivoConsulta: event.currentTarget.value,
-                            })
-                        }
-                    />
+                            <Button
+                                variant="light"
+                                leftSection={<IconUserPlus size={17} />}
+                                onClick={nuevoPaciente}
+                            >
+                                Nuevo paciente
+                            </Button>
+                        </Group>
+                    </Card>
 
-                    <TextInput
-                        label="Presión arterial"
-                        value={form.presionArterial}
-                        onChange={(event) =>
-                            setForm({
-                                ...form,
-                                presionArterial: event.currentTarget.value,
-                            })
-                        }
-                    />
+                    <Card withBorder radius="md">
+                        <Text fw={700} mb="sm">Motivo y signos vitales</Text>
 
-                    <NumberInput
-                        label="Frecuencia cardiaca"
-                        value={form.frecuenciaCardiaca}
-                        onChange={(value) =>
-                            setForm({ ...form, frecuenciaCardiaca: value })
-                        }
-                    />
+                        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
+                            <TextInput
+                                label="Motivo de consulta"
+                                required
+                                value={form.motivoConsulta}
+                                onChange={(event) =>
+                                    setForm({ ...form, motivoConsulta: event.currentTarget.value })
+                                }
+                            />
+                            <TextInput
+                                label="Presión arterial"
+                                placeholder="120/80"
+                                value={form.presionArterial}
+                                onChange={(event) =>
+                                    setForm({ ...form, presionArterial: event.currentTarget.value })
+                                }
+                            />
+                            <NumberInput
+                                label="Frecuencia cardiaca"
+                                suffix=" lpm"
+                                value={form.frecuenciaCardiaca}
+                                onChange={(value) => setForm({ ...form, frecuenciaCardiaca: value })}
+                            />
+                            <NumberInput
+                                label="Saturación O2"
+                                suffix=" %"
+                                value={form.saturacionOxigeno}
+                                onChange={(value) => setForm({ ...form, saturacionOxigeno: value })}
+                            />
+                            <NumberInput
+                                label="Peso"
+                                suffix=" kg"
+                                decimalScale={2}
+                                value={form.pesoKg}
+                                onChange={(value) => setForm({ ...form, pesoKg: value })}
+                            />
+                            <NumberInput
+                                label="Talla"
+                                suffix=" cm"
+                                decimalScale={2}
+                                value={form.tallaCm}
+                                onChange={(value) => setForm({ ...form, tallaCm: value })}
+                            />
+                            <NumberInput
+                                label="Temperatura"
+                                suffix=" °C"
+                                decimalScale={1}
+                                value={form.temperatura}
+                                onChange={(value) => setForm({ ...form, temperatura: value })}
+                            />
+                        </SimpleGrid>
+                    </Card>
 
-                    <NumberInput
-                        label="Peso kg"
-                        decimalScale={2}
-                        value={form.pesoKg}
-                        onChange={(value) => setForm({ ...form, pesoKg: value })}
-                    />
+                    <Card withBorder radius="md">
+                        <Text fw={700} mb="sm">Evaluación médica</Text>
+                        <Stack gap="sm">
+                            <Textarea
+                                label="Enfermedad actual"
+                                autosize
+                                minRows={3}
+                                value={form.enfermedadActual}
+                                onChange={(event) =>
+                                    setForm({ ...form, enfermedadActual: event.currentTarget.value })
+                                }
+                            />
+                            <Textarea
+                                label="Examen físico"
+                                autosize
+                                minRows={3}
+                                value={form.examenFisico}
+                                onChange={(event) =>
+                                    setForm({ ...form, examenFisico: event.currentTarget.value })
+                                }
+                            />
+                            <Textarea
+                                label="Diagnóstico"
+                                autosize
+                                minRows={2}
+                                value={form.diagnostico}
+                                onChange={(event) =>
+                                    setForm({ ...form, diagnostico: event.currentTarget.value })
+                                }
+                            />
+                            <Textarea
+                                label="Tratamiento"
+                                autosize
+                                minRows={3}
+                                value={form.tratamiento}
+                                onChange={(event) =>
+                                    setForm({ ...form, tratamiento: event.currentTarget.value })
+                                }
+                            />
+                            <Textarea
+                                label="Indicaciones"
+                                autosize
+                                minRows={2}
+                                value={form.indicaciones}
+                                onChange={(event) =>
+                                    setForm({ ...form, indicaciones: event.currentTarget.value })
+                                }
+                            />
+                            <Textarea
+                                label="Observaciones"
+                                autosize
+                                minRows={2}
+                                value={form.observaciones}
+                                onChange={(event) =>
+                                    setForm({ ...form, observaciones: event.currentTarget.value })
+                                }
+                            />
+                        </Stack>
+                    </Card>
 
-                    <NumberInput
-                        label="Talla cm"
-                        decimalScale={2}
-                        value={form.tallaCm}
-                        onChange={(value) => setForm({ ...form, tallaCm: value })}
-                    />
+                    <Card withBorder radius="md">
+                        <Text fw={700} mb="sm">Cobro de consulta</Text>
+                        <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                            <NumberInput
+                                label="Valor consulta"
+                                prefix="$"
+                                decimalScale={2}
+                                min={0}
+                                value={form.valorConsulta}
+                                onChange={(value) => setForm({ ...form, valorConsulta: value })}
+                            />
+                            <Select
+                                label="Forma de pago"
+                                data={['Efectivo', 'Transferencia', 'Tarjeta', 'Otro']}
+                                value={form.formaPago}
+                                onChange={(value) => setForm({ ...form, formaPago: value ?? 'Efectivo' })}
+                            />
+                        </SimpleGrid>
+                    </Card>
 
-                    <NumberInput
-                        label="Temperatura"
-                        decimalScale={1}
-                        value={form.temperatura}
-                        onChange={(value) => setForm({ ...form, temperatura: value })}
-                    />
-
-                    <NumberInput
-                        label="Saturación O2"
-                        value={form.saturacionOxigeno}
-                        onChange={(value) =>
-                            setForm({ ...form, saturacionOxigeno: value })
-                        }
-                    />
-                </SimpleGrid>
-
-                <Textarea
-                    mt="sm"
-                    label="Enfermedad actual"
-                    value={form.enfermedadActual}
-                    onChange={(event) =>
-                        setForm({
-                            ...form,
-                            enfermedadActual: event.currentTarget.value,
-                        })
-                    }
-                />
-
-                <Textarea
-                    mt="sm"
-                    label="Examen físico"
-                    value={form.examenFisico}
-                    onChange={(event) =>
-                        setForm({ ...form, examenFisico: event.currentTarget.value })
-                    }
-                />
-
-                <Textarea
-                    mt="sm"
-                    label="Diagnóstico"
-                    value={form.diagnostico}
-                    onChange={(event) =>
-                        setForm({ ...form, diagnostico: event.currentTarget.value })
-                    }
-                />
-
-                <Textarea
-                    mt="sm"
-                    label="Tratamiento"
-                    value={form.tratamiento}
-                    onChange={(event) =>
-                        setForm({ ...form, tratamiento: event.currentTarget.value })
-                    }
-                />
-
-                <Textarea
-                    mt="sm"
-                    label="Indicaciones"
-                    value={form.indicaciones}
-                    onChange={(event) =>
-                        setForm({ ...form, indicaciones: event.currentTarget.value })
-                    }
-                />
-
-                <Textarea
-                    mt="sm"
-                    label="Observaciones"
-                    value={form.observaciones}
-                    onChange={(event) =>
-                        setForm({ ...form, observaciones: event.currentTarget.value })
-                    }
-                />
-
-                <Group justify="flex-end" mt="md">
-                    <Button variant="default" onClick={close}>
-                        Cancelar
-                    </Button>
-                    <Button onClick={guardarConsulta} disabled={!form.pacienteId}>
-                        Guardar consulta
-                    </Button>
-                </Group>
+                    <Group justify="flex-end">
+                        <Button variant="default" onClick={cerrarConsulta}>
+                            Cancelar
+                        </Button>
+                        <Button
+                            variant="light"
+                            onClick={() => guardarConsulta(false)}
+                            disabled={!form.pacienteId || !form.motivoConsulta}
+                        >
+                            Guardar consulta
+                        </Button>
+                        <Button
+                            leftSection={<IconNotes size={17} />}
+                            onClick={() => guardarConsulta(true)}
+                            disabled={!form.pacienteId || !form.motivoConsulta}
+                        >
+                            Guardar y emitir receta
+                        </Button>
+                    </Group>
+                </Stack>
             </Modal>
 
             <Modal
@@ -378,21 +459,69 @@ export default function ConsultasPage() {
                 zIndex={1001}
             >
                 <SimpleGrid cols={{ base: 1, sm: 2 }}>
-                    {camposPaciente.map(([campo, label]) => (
-                        <TextInput
-                            key={campo}
-                            label={label}
-                            type={campo === 'fechaNacimiento' ? 'date' : 'text'}
-                            value={pacienteForm[campo] ?? ''}
-                            onChange={(event) =>
-                                setPacienteForm({
-                                    ...pacienteForm,
-                                    [campo]: event.currentTarget.value,
-                                })
-                            }
-                        />
-                    ))}
+                    <TextInput
+                        label="Identificación"
+                        required
+                        value={pacienteForm.identificacion}
+                        onChange={(event) => setPacienteForm({
+                            ...pacienteForm,
+                            identificacion: event.currentTarget.value,
+                        })}
+                    />
+                    <TextInput
+                        label="Fecha de nacimiento"
+                        type="date"
+                        value={pacienteForm.fechaNacimiento}
+                        onChange={(event) => setPacienteForm({
+                            ...pacienteForm,
+                            fechaNacimiento: event.currentTarget.value,
+                        })}
+                    />
+                    <TextInput
+                        label="Nombres"
+                        required
+                        value={pacienteForm.nombres}
+                        onChange={(event) => setPacienteForm({
+                            ...pacienteForm,
+                            nombres: event.currentTarget.value,
+                        })}
+                    />
+                    <TextInput
+                        label="Apellidos"
+                        required
+                        value={pacienteForm.apellidos}
+                        onChange={(event) => setPacienteForm({
+                            ...pacienteForm,
+                            apellidos: event.currentTarget.value,
+                        })}
+                    />
+                    <TextInput
+                        label="Teléfono"
+                        value={pacienteForm.telefono}
+                        onChange={(event) => setPacienteForm({
+                            ...pacienteForm,
+                            telefono: event.currentTarget.value,
+                        })}
+                    />
+                    <TextInput
+                        label="Correo"
+                        value={pacienteForm.email}
+                        onChange={(event) => setPacienteForm({
+                            ...pacienteForm,
+                            email: event.currentTarget.value,
+                        })}
+                    />
                 </SimpleGrid>
+
+                <Textarea
+                    mt="sm"
+                    label="Dirección"
+                    value={pacienteForm.direccion}
+                    onChange={(event) => setPacienteForm({
+                        ...pacienteForm,
+                        direccion: event.currentTarget.value,
+                    })}
+                />
 
                 <Group justify="flex-end" mt="md">
                     <Button variant="default" onClick={closePaciente}>
@@ -401,9 +530,9 @@ export default function ConsultasPage() {
                     <Button
                         onClick={guardarPaciente}
                         disabled={
-                            !pacienteForm.identificacion ||
-                            !pacienteForm.nombres ||
-                            !pacienteForm.apellidos
+                            !pacienteForm.identificacion
+                            || !pacienteForm.nombres
+                            || !pacienteForm.apellidos
                         }
                     >
                         Guardar paciente
@@ -420,111 +549,61 @@ export default function ConsultasPage() {
                 {consultaSeleccionada && (
                     <Stack gap="md">
                         <SimpleGrid cols={{ base: 1, sm: 3 }}>
-                            <CampoConsulta
-                                label="Paciente"
-                                value={consultaSeleccionada.paciente}
-                            />
-                            <CampoConsulta
-                                label="Médico"
-                                value={consultaSeleccionada.medico}
-                            />
+                            <CampoConsulta label="Paciente" value={consultaSeleccionada.paciente} />
+                            <CampoConsulta label="Médico" value={consultaSeleccionada.medico} />
                             <CampoConsulta
                                 label="Fecha"
-                                value={new Date(
-                                    consultaSeleccionada.fechaConsulta,
-                                ).toLocaleString()}
+                                value={new Date(consultaSeleccionada.fechaConsulta).toLocaleString()}
                             />
                         </SimpleGrid>
 
                         <Divider />
 
-                        <SimpleGrid cols={{ base: 1, sm: 4 }}>
+                        <SimpleGrid cols={{ base: 2, sm: 4 }}>
                             <CampoConsulta
                                 label="Peso"
-                                value={
-                                    consultaSeleccionada.pesoKg
-                                        ? `${consultaSeleccionada.pesoKg} kg`
-                                        : '-'
-                                }
+                                value={consultaSeleccionada.pesoKg ? `${consultaSeleccionada.pesoKg} kg` : '-'}
                             />
                             <CampoConsulta
                                 label="Talla"
-                                value={
-                                    consultaSeleccionada.tallaCm
-                                        ? `${consultaSeleccionada.tallaCm} cm`
-                                        : '-'
-                                }
+                                value={consultaSeleccionada.tallaCm ? `${consultaSeleccionada.tallaCm} cm` : '-'}
                             />
                             <CampoConsulta
                                 label="Temperatura"
-                                value={
-                                    consultaSeleccionada.temperatura
-                                        ? `${consultaSeleccionada.temperatura} °C`
-                                        : '-'
-                                }
+                                value={consultaSeleccionada.temperatura ? `${consultaSeleccionada.temperatura} °C` : '-'}
                             />
-                            <CampoConsulta
-                                label="Presión arterial"
-                                value={consultaSeleccionada.presionArterial}
-                            />
-                            <CampoConsulta
-                                label="Frecuencia cardiaca"
-                                value={consultaSeleccionada.frecuenciaCardiaca}
-                            />
+                            <CampoConsulta label="Presión arterial" value={consultaSeleccionada.presionArterial} />
+                            <CampoConsulta label="Frecuencia cardiaca" value={consultaSeleccionada.frecuenciaCardiaca} />
                             <CampoConsulta
                                 label="Saturación O2"
-                                value={
-                                    consultaSeleccionada.saturacionOxigeno
-                                        ? `${consultaSeleccionada.saturacionOxigeno}%`
-                                        : '-'
-                                }
+                                value={consultaSeleccionada.saturacionOxigeno ? `${consultaSeleccionada.saturacionOxigeno}%` : '-'}
                             />
                             <CampoConsulta
                                 label="Valor consulta"
-                                value={`$${consultaSeleccionada.valorConsulta}`}
+                                value={`$${Number(consultaSeleccionada.valorConsulta).toFixed(2)}`}
                             />
+                            <CampoConsulta label="Forma de pago" value={consultaSeleccionada.formaPago} />
                         </SimpleGrid>
 
                         <Divider />
 
-                        <CampoConsulta
-                            label="Motivo de consulta"
-                            value={consultaSeleccionada.motivoConsulta}
-                        />
-                        <CampoConsulta
-                            label="Enfermedad actual"
-                            value={consultaSeleccionada.enfermedadActual}
-                        />
-                        <CampoConsulta
-                            label="Examen físico"
-                            value={consultaSeleccionada.examenFisico}
-                        />
-                        <CampoConsulta
-                            label="Diagnóstico"
-                            value={consultaSeleccionada.diagnostico}
-                        />
-                        <CampoConsulta
-                            label="Tratamiento"
-                            value={consultaSeleccionada.tratamiento}
-                        />
-                        <CampoConsulta
-                            label="Indicaciones"
-                            value={consultaSeleccionada.indicaciones}
-                        />
-                        <CampoConsulta
-                            label="Observaciones"
-                            value={consultaSeleccionada.observaciones}
-                        />
+                        <CampoConsulta label="Motivo de consulta" value={consultaSeleccionada.motivoConsulta} />
+                        <CampoConsulta label="Enfermedad actual" value={consultaSeleccionada.enfermedadActual} />
+                        <CampoConsulta label="Examen físico" value={consultaSeleccionada.examenFisico} />
+                        <CampoConsulta label="Diagnóstico" value={consultaSeleccionada.diagnostico} />
+                        <CampoConsulta label="Tratamiento" value={consultaSeleccionada.tratamiento} />
+                        <CampoConsulta label="Indicaciones" value={consultaSeleccionada.indicaciones} />
+                        <CampoConsulta label="Observaciones" value={consultaSeleccionada.observaciones} />
 
                         <Group justify="flex-end">
                             <Button
                                 leftSection={<IconNotes size={16} />}
                                 onClick={() => {
                                     closeDetalle();
-                                    emitirReceta(consultaSeleccionada);
+                                    abrirReceta(consultaSeleccionada);
                                 }}
                             >
-                                Emitir receta
+                                {consultaSeleccionada.recetaId ? 'Ver receta' : 'Emitir receta'}
                             </Button>
                         </Group>
                     </Stack>

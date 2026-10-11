@@ -1,6 +1,8 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import GlobalLoading from './components/GlobalLoading';
 import AppLayout from './layouts/AppLayout';
+import AgendaPage from './pages/AgendaPage';
+import CajaPage from './pages/CajaPage';
 import ConsultasPage from './pages/ConsultasPage';
 import DashboardPage from './pages/DashboardPage';
 import HistoriasClinicasPage from './pages/HistoriasClinicasPage';
@@ -16,7 +18,9 @@ import UsuariosPage from './pages/UsuariosPage';
 import VentasPage from './pages/VentasPage';
 
 function Protected() {
-    return localStorage.getItem('token') ? <AppLayout /> : <Navigate to="/login" replace />;
+    return localStorage.getItem('token')
+        ? <AppLayout />
+        : <Navigate to="/login" replace />;
 }
 
 export default function App() {
@@ -29,6 +33,7 @@ export default function App() {
 
                 <Route element={<Protected />}>
                     <Route path="/" element={<DashboardPage />} />
+                    <Route path="/agenda" element={<AgendaPage />} />
                     <Route path="/pacientes" element={<PacientesPage />} />
                     <Route path="/historias" element={<HistoriasClinicasPage />} />
                     <Route path="/consultas" element={<ConsultasPage />} />
@@ -38,6 +43,7 @@ export default function App() {
                     <Route path="/ventas" element={<VentasPage />} />
                     <Route path="/pedidos" element={<PedidosPage />} />
                     <Route path="/sri" element={<SriPage />} />
+                    <Route path="/caja" element={<CajaPage />} />
                     <Route path="/reportes" element={<ReportesPage />} />
                     <Route path="/usuarios" element={<UsuariosPage />} />
                 </Route>

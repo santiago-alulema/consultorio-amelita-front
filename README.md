@@ -1,4 +1,4 @@
-# Clínica Amelita - Frontend
+# Consultorio Amelita - Frontend
 
 React + Vite + TypeScript + Mantine.
 

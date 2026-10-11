@@ -49,12 +49,12 @@ const recetaVacia = () => ({
 });
 
 const configuracionVacia = {
-    nombreClinica: 'Clínica Amelita',
-    subtitulo: 'Atención médica y farmacia',
+    nombreClinica: 'Consultorio Amelita',
+    subtitulo: 'Medicina general',
     ruc: '',
     direccion: '',
     telefono: '',
-    piePagina: 'Clínica Amelita',
+    piePagina: 'RECETARIO',
     plantillaArchivo: null,
 };
 
@@ -131,6 +131,16 @@ export default function RecetasPage() {
         });
 
         open();
+    }, [searchParams]);
+
+    useEffect(() => {
+        const recetaId = searchParams.get('ver');
+
+        if (!recetaId) {
+            return;
+        }
+
+        verReceta(Number(recetaId));
     }, [searchParams]);
 
     function abrirNuevaReceta() {
@@ -274,7 +284,8 @@ export default function RecetasPage() {
                 </Group>
             </Group>
 
-            <Table striped withTableBorder highlightOnHover>
+            <div className="table-wrapper">
+                <Table striped withTableBorder highlightOnHover>
                 <Table.Thead>
                     <Table.Tr>
                         <Table.Th>Fecha</Table.Th>
@@ -322,6 +333,7 @@ export default function RecetasPage() {
                     ))}
                 </Table.Tbody>
             </Table>
+            </div>
 
             <Modal opened={opened} onClose={cerrarModal} title="Emitir receta" size="xl">
                 <Select
@@ -610,7 +622,7 @@ export default function RecetasPage() {
             >
                 <Stack>
                     <TextInput
-                        label="Nombre de la clínica"
+                        label="Nombre del consultorio"
                         value={configuracion.nombreClinica ?? ''}
                         onChange={(event) =>
                             setConfiguracion({
@@ -682,8 +694,7 @@ export default function RecetasPage() {
                             Imagen de plantilla
                         </Text>
                         <Text size="sm" c="dimmed" mb="sm">
-                            Puedes diseñarla externamente y subir un PNG o JPG. Se usará
-                            como fondo del PDF de la receta.
+                            Puedes subir un PNG o JPG con tu diseño. El PDF se imprime en A4 horizontal con dos recetas y una línea punteada al centro para cortar.
                         </Text>
 
                         <Group>

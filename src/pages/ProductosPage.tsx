@@ -8,6 +8,7 @@ import {
     NumberInput,
     SimpleGrid,
     Table,
+    Text,
     TextInput,
     Title,
 } from '@mantine/core';
@@ -96,8 +97,8 @@ export default function ProductosPage() {
 
     function descargarPlantilla() {
         const link = document.createElement('a');
-        link.href = '/templates/plantilla_productos_clinica_amelita.xlsx';
-        link.download = 'plantilla_productos_clinica_amelita.xlsx';
+        link.href = '/plantilla_productos_consultorio_amelita.xlsx';
+        link.download = 'plantilla_productos_consultorio_amelita.xlsx';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -105,8 +106,13 @@ export default function ProductosPage() {
 
     return (
         <>
-            <Group justify="space-between" mb="md">
-                <Title order={2}>Productos de farmacia</Title>
+            <div className="page-header">
+                <div>
+                    <Title order={2}>Productos de farmacia</Title>
+                    <Text c="dimmed" mt={3}>
+                        Administra el catálogo, stock mínimo e importación masiva desde Excel.
+                    </Text>
+                </div>
 
                 <Group>
                     <Button
@@ -135,9 +141,10 @@ export default function ProductosPage() {
 
                     <Button onClick={nuevo}>Nuevo producto</Button>
                 </Group>
-            </Group>
+            </div>
 
-            <Table striped withTableBorder>
+            <div className="table-wrapper">
+                <Table striped withTableBorder>
                 <Table.Thead>
                     <Table.Tr>
                         <Table.Th>Código</Table.Th>
@@ -195,6 +202,7 @@ export default function ProductosPage() {
                     ))}
                 </Table.Tbody>
             </Table>
+            </div>
 
             <Modal
                 opened={opened}
