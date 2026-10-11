@@ -76,7 +76,7 @@ function CampoDetalle({ label, value }: { label: string; value: unknown }) {
             <Text size="sm" c="dimmed">
                 {label}
             </Text>
-            <Text fw={500}>{value || '-'}</Text>
+            <Text fw={500}>{value == null || value === '' ? '-' : String(value)}</Text>
         </div>
     );
 }

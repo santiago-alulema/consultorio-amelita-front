@@ -66,7 +66,7 @@ function CampoConsulta({ label, value }: { label: string; value: unknown }) {
             <Text size="xs" c="dimmed" fw={600}>
                 {label}
             </Text>
-            <Text style={{ whiteSpace: 'pre-wrap' }}>{value || '-'}</Text>
+            <Text style={{ whiteSpace: 'pre-wrap' }}>{value == null || value === '' ? '-' : String(value)}</Text>
         </div>
     );
 }
