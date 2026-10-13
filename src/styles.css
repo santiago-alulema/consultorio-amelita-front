@@ -85,14 +85,3 @@ body {
         min-width: 680px;
     }
 }
-
-@media (max-width: 36em) {
-    .mantine-Stepper-steps {
-        overflow-x: auto;
-        padding-bottom: 8px;
-    }
-
-    .mantine-Stepper-stepLabel {
-        white-space: nowrap;
-    }
-}

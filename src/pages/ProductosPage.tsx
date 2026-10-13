@@ -1,5 +1,6 @@
 import {
     ActionIcon,
+    Alert,
     Badge,
     Button,
     FileButton,
@@ -32,8 +33,6 @@ const productoVacio = {
     precioCompra: 0,
     precioVenta: 0,
     stockMinimo: 5,
-    numeroLote: '',
-    fechaCaducidad: '',
 };
 
 export default function ProductosPage() {
@@ -42,6 +41,8 @@ export default function ProductosPage() {
     const [editId, setEditId] = useState<number | null>(null);
     const [opened, { open, close }] = useDisclosure();
     const resetRef = useRef<() => void>(null);
+    const [resultadoImportacion, setResultadoImportacion] = useState<any>(null);
+    const [errorImportacion, setErrorImportacion] = useState<string | null>(null);
 
     const load = async () => {
         const response = await api.get('/productos');
@@ -60,25 +61,15 @@ export default function ProductosPage() {
 
     function editar(producto: any) {
         setEditId(producto.id);
-        setForm({
-            ...productoVacio,
-            ...producto,
-            numeroLote: producto.numeroLote ?? '',
-            fechaCaducidad: producto.proximaCaducidad ?? '',
-        });
+        setForm({ ...productoVacio, ...producto });
         open();
     }
 
     async function save() {
-        const request = {
-            ...form,
-            fechaCaducidad: form.fechaCaducidad || null,
-        };
-
         if (editId) {
-            await api.put(`/productos/${editId}`, request);
+            await api.put(`/productos/${editId}`, form);
         } else {
-            await api.post('/productos', request);
+            await api.post('/productos', form);
         }
 
         close();
@@ -99,12 +90,30 @@ export default function ProductosPage() {
             return;
         }
 
-        const formData = new FormData();
-        formData.append('archivo', file);
+        setResultadoImportacion(null);
+        setErrorImportacion(null);
 
-        await api.post('/productos/importar-excel', formData);
-        resetRef.current?.();
-        await load();
+        try {
+            const formData = new FormData();
+            formData.append('archivo', file);
+
+            const response = await api.post('/productos/importar-excel', formData);
+
+            setResultadoImportacion(response.data);
+            await load();
+        } catch (error: any) {
+            const responseData = error.response?.data;
+
+            setErrorImportacion(
+                typeof responseData === 'string'
+                    ? responseData
+                    : responseData?.message
+                      ?? responseData?.title
+                      ?? 'No se pudo importar el archivo. Revise la plantilla e inténtelo nuevamente.',
+            );
+        } finally {
+            resetRef.current?.();
+        }
     }
 
     function descargarPlantilla() {
@@ -138,7 +147,7 @@ export default function ProductosPage() {
                     <FileButton
                         resetRef={resetRef}
                         onChange={importar}
-                        accept=".xlsx,.xls"
+                        accept=".xlsx"
                     >
                         {(props) => (
                             <Button
@@ -154,6 +163,35 @@ export default function ProductosPage() {
                     <Button onClick={nuevo}>Nuevo producto</Button>
                 </Group>
             </div>
+
+            {errorImportacion && (
+                <Alert color="red" title="No se pudo importar el Excel" mb="md">
+                    {errorImportacion}
+                </Alert>
+            )}
+
+            {resultadoImportacion && (
+                <Alert
+                    color={resultadoImportacion.errores > 0 ? 'yellow' : 'green'}
+                    title="Importación finalizada"
+                    mb="md"
+                >
+                    <Text size="sm">
+                        Creados: {resultadoImportacion.creados} · Actualizados:{' '}
+                        {resultadoImportacion.actualizados} · Errores: {resultadoImportacion.errores}
+                    </Text>
+
+                    {resultadoImportacion.filasConError?.length > 0 && (
+                        <div style={{ marginTop: 8 }}>
+                            {resultadoImportacion.filasConError.slice(0, 8).map((item: any) => (
+                                <Text key={item.fila} size="xs">
+                                    Fila {item.fila}: {item.error}
+                                </Text>
+                            ))}
+                        </div>
+                    )}
+                </Alert>
+            )}
 
             <div className="table-wrapper">
                 <Table striped withTableBorder>
@@ -319,24 +357,6 @@ export default function ProductosPage() {
                         label="Stock mínimo"
                         value={form.stockMinimo}
                         onChange={(value) => setForm({ ...form, stockMinimo: value })}
-                    />
-
-                    <TextInput
-                        label="Lote"
-                        placeholder="Ej. LOTE-2026-001"
-                        value={form.numeroLote}
-                        onChange={(event) =>
-                            setForm({ ...form, numeroLote: event.currentTarget.value })
-                        }
-                    />
-
-                    <TextInput
-                        label="Fecha de caducidad"
-                        type="date"
-                        value={form.fechaCaducidad}
-                        onChange={(event) =>
-                            setForm({ ...form, fechaCaducidad: event.currentTarget.value })
-                        }
                     />
                 </SimpleGrid>
 

@@ -23,7 +23,6 @@ import {
     IconUserCheck,
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../api/api';
 
 const pacienteVacio = {
@@ -41,7 +40,6 @@ const pacienteVacio = {
 };
 
 export default function PacientesPage() {
-    const navigate = useNavigate();
     const [data, setData] = useState<any[]>([]);
     const [buscar, setBuscar] = useState('');
     const [incluirInactivos, setIncluirInactivos] = useState(false);
@@ -68,7 +66,9 @@ export default function PacientesPage() {
     }, [incluirInactivos]);
 
     function nuevoPaciente() {
-        navigate('/atencion?nuevo=1');
+        setEditandoId(null);
+        setForm(pacienteVacio);
+        open();
     }
 
     function editarPaciente(paciente: any) {
@@ -197,16 +197,6 @@ export default function PacientesPage() {
                                 </Table.Td>
                                 <Table.Td>
                                     <Group gap="xs" wrap="nowrap">
-                                        {paciente.esActivo && (
-                                            <Button
-                                                size="xs"
-                                                variant="light"
-                                                onClick={() => navigate(`/atencion?pacienteId=${paciente.id}`)}
-                                            >
-                                                Nueva atención
-                                            </Button>
-                                        )}
-
                                         <Button
                                             size="xs"
                                             variant="light"
