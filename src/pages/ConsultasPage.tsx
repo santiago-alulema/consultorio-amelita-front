@@ -1,64 +1,29 @@
 import {
+    Accordion,
     Badge,
     Button,
     Card,
     Divider,
     Group,
     Modal,
-    NumberInput,
-    Select,
     SimpleGrid,
     Stack,
     Table,
     Text,
-    Textarea,
     TextInput,
     Title,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconEye,
+    IconHistory,
     IconNotes,
     IconPlus,
-    IconUserPlus,
+    IconSearch,
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/api';
-
-const consultaVacia = {
-    pacienteId: '',
-    citaId: null as string | null,
-    motivoConsulta: '',
-    enfermedadActual: '',
-    pesoKg: '',
-    tallaCm: '',
-    temperatura: '',
-    presionArterial: '',
-    frecuenciaCardiaca: '',
-    saturacionOxigeno: '',
-    examenFisico: '',
-    diagnostico: '',
-    tratamiento: '',
-    indicaciones: '',
-    observaciones: '',
-    valorConsulta: 0,
-    formaPago: 'Efectivo',
-};
-
-const pacienteVacio = {
-    identificacion: '',
-    nombres: '',
-    apellidos: '',
-    fechaNacimiento: '',
-    sexo: '',
-    tipoSangre: '',
-    telefono: '',
-    email: '',
-    direccion: '',
-    contactoEmergencia: '',
-    telefonoEmergencia: '',
-};
 
 function CampoConsulta({ label, value }: { label: string; value: unknown }) {
     return (
@@ -66,37 +31,31 @@ function CampoConsulta({ label, value }: { label: string; value: unknown }) {
             <Text size="xs" c="dimmed" fw={600}>
                 {label}
             </Text>
-            <Text style={{ whiteSpace: 'pre-wrap' }}>{value == null || value === '' ? '-' : String(value)}</Text>
+            <Text style={{ whiteSpace: 'pre-wrap' }}>
+                {value == null || value === '' ? '-' : String(value)}
+            </Text>
         </div>
     );
 }
 
 export default function ConsultasPage() {
     const navigate = useNavigate();
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [searchParams] = useSearchParams();
     const [data, setData] = useState<any[]>([]);
-    const [pacientes, setPacientes] = useState<any[]>([]);
-    const [form, setForm] = useState<any>(consultaVacia);
-    const [pacienteForm, setPacienteForm] = useState<any>(pacienteVacio);
     const [consultaSeleccionada, setConsultaSeleccionada] = useState<any>(null);
+    const [buscarHistorial, setBuscarHistorial] = useState('');
+    const [historial, setHistorial] = useState<any[]>([]);
 
-    const [opened, { open, close }] = useDisclosure();
-    const [pacienteOpened, { open: openPaciente, close: closePaciente }] = useDisclosure();
     const [detalleOpened, { open: openDetalle, close: closeDetalle }] = useDisclosure();
+    const [historialOpened, { open: openHistorial, close: closeHistorial }] = useDisclosure();
 
     const loadConsultas = async () => {
         const response = await api.get('/consultas');
         setData(response.data);
     };
 
-    const loadPacientes = async () => {
-        const response = await api.get('/pacientes');
-        setPacientes(response.data);
-    };
-
     useEffect(() => {
         loadConsultas();
-        loadPacientes();
     }, []);
 
     useEffect(() => {
@@ -104,65 +63,20 @@ export default function ConsultasPage() {
             return;
         }
 
-        setForm({
-            ...consultaVacia,
-            pacienteId: searchParams.get('pacienteId') ?? '',
-            citaId: searchParams.get('citaId'),
-        });
-        open();
-    }, [searchParams]);
+        const params = new URLSearchParams();
+        const pacienteId = searchParams.get('pacienteId');
+        const citaId = searchParams.get('citaId');
 
-    function cerrarConsulta() {
-        close();
-
-        if (searchParams.get('nueva')) {
-            setSearchParams({}, { replace: true });
+        if (pacienteId) {
+            params.set('pacienteId', pacienteId);
         }
-    }
 
-    function nuevaConsulta() {
-        setForm(consultaVacia);
-        open();
-    }
-
-    function nuevoPaciente() {
-        setPacienteForm(pacienteVacio);
-        openPaciente();
-    }
-
-    async function guardarPaciente() {
-        const response = await api.post('/pacientes', {
-            ...pacienteForm,
-            fechaNacimiento: pacienteForm.fechaNacimiento || null,
-        });
-
-        await loadPacientes();
-        setForm((actual: any) => ({
-            ...actual,
-            pacienteId: String(response.data.id),
-        }));
-        closePaciente();
-    }
-
-    async function guardarConsulta(emitirReceta = false) {
-        const response = await api.post('/consultas', {
-            ...form,
-            pacienteId: Number(form.pacienteId),
-            citaId: form.citaId ? Number(form.citaId) : null,
-            fechaConsulta: new Date().toISOString(),
-        });
-
-        const consultaId = Number(response.data.id);
-        const pacienteId = Number(form.pacienteId);
-
-        cerrarConsulta();
-        setForm(consultaVacia);
-        await loadConsultas();
-
-        if (emitirReceta) {
-            navigate(`/recetas?nueva=1&pacienteId=${pacienteId}&consultaId=${consultaId}`);
+        if (citaId) {
+            params.set('citaId', citaId);
         }
-    }
+
+        navigate(`/atencion?${params.toString()}`, { replace: true });
+    }, [searchParams, navigate]);
 
     async function verConsulta(id: number) {
         const response = await api.get(`/consultas/${id}`);
@@ -181,20 +95,58 @@ export default function ConsultasPage() {
         );
     }
 
+    async function buscarAtenciones() {
+        if (!buscarHistorial.trim()) {
+            return;
+        }
+
+        const response = await api.get('/pacientes/historial-atenciones', {
+            params: { buscar: buscarHistorial.trim() },
+        });
+
+        setHistorial(response.data);
+        openHistorial();
+    }
+
     return (
         <>
             <div className="page-header">
                 <div>
                     <Title order={2}>Consultas</Title>
                     <Text className="page-subtitle">
-                        Registra la atención completa y emite la receta sin salir del flujo de consulta.
+                        Registra atenciones y consulta rápidamente el historial completo de cada paciente.
                     </Text>
                 </div>
 
-                <Button leftSection={<IconPlus size={17} />} onClick={nuevaConsulta}>
-                    Registrar consulta
+                <Button
+                    leftSection={<IconPlus size={17} />}
+                    onClick={() => navigate('/atencion')}
+                >
+                    Nueva atención
                 </Button>
             </div>
+
+            <Card withBorder radius="md" mb="md">
+                <Group align="flex-end" wrap="wrap">
+                    <TextInput
+                        label="Buscar historial de atenciones"
+                        placeholder="Cédula, nombres o apellidos"
+                        value={buscarHistorial}
+                        onChange={(event) => setBuscarHistorial(event.currentTarget.value)}
+                        onKeyDown={(event) => event.key === 'Enter' && buscarAtenciones()}
+                        leftSection={<IconSearch size={16} />}
+                        style={{ flex: 1, minWidth: 260 }}
+                    />
+                    <Button
+                        variant="light"
+                        leftSection={<IconHistory size={17} />}
+                        onClick={buscarAtenciones}
+                        disabled={!buscarHistorial.trim()}
+                    >
+                        Ver historial
+                    </Button>
+                </Group>
+            </Card>
 
             <div className="table-wrapper">
                 <Table striped highlightOnHover>
@@ -222,7 +174,7 @@ export default function ConsultasPage() {
                                 <Table.Td>${Number(consulta.valorConsulta).toFixed(2)}</Table.Td>
                                 <Table.Td>
                                     <Badge color={consulta.recetaId ? 'green' : 'gray'}>
-                                        {consulta.recetaId ? 'Emitida' : 'Pendiente'}
+                                        {consulta.recetaId ? 'Emitida' : 'Sin receta'}
                                     </Badge>
                                 </Table.Td>
                                 <Table.Td>
@@ -250,295 +202,6 @@ export default function ConsultasPage() {
                     </Table.Tbody>
                 </Table>
             </div>
-
-            <Modal
-                opened={opened}
-                onClose={cerrarConsulta}
-                title="Registrar consulta"
-                size="xl"
-            >
-                <Stack gap="md">
-                    {form.citaId && (
-                        <Badge variant="light" size="lg" w="fit-content">
-                            Consulta vinculada a cita #{form.citaId}
-                        </Badge>
-                    )}
-
-                    <Card withBorder radius="md">
-                        <Text fw={700} mb="sm">Paciente</Text>
-                        <Group align="flex-end" wrap="wrap">
-                            <Select
-                                searchable
-                                clearable
-                                label="Paciente"
-                                placeholder="Buscar por cédula o nombre"
-                                data={pacientes.map((paciente) => ({
-                                    value: String(paciente.id),
-                                    label: `${paciente.identificacion} - ${paciente.nombres} ${paciente.apellidos}`,
-                                }))}
-                                value={form.pacienteId}
-                                onChange={(value) =>
-                                    setForm({ ...form, pacienteId: value ?? '' })
-                                }
-                                style={{ flex: 1, minWidth: 240 }}
-                            />
-
-                            <Button
-                                variant="light"
-                                leftSection={<IconUserPlus size={17} />}
-                                onClick={nuevoPaciente}
-                            >
-                                Nuevo paciente
-                            </Button>
-                        </Group>
-                    </Card>
-
-                    <Card withBorder radius="md">
-                        <Text fw={700} mb="sm">Motivo y signos vitales</Text>
-
-                        <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }}>
-                            <TextInput
-                                label="Motivo de consulta"
-                                required
-                                value={form.motivoConsulta}
-                                onChange={(event) =>
-                                    setForm({ ...form, motivoConsulta: event.currentTarget.value })
-                                }
-                            />
-                            <TextInput
-                                label="Presión arterial"
-                                placeholder="120/80"
-                                value={form.presionArterial}
-                                onChange={(event) =>
-                                    setForm({ ...form, presionArterial: event.currentTarget.value })
-                                }
-                            />
-                            <NumberInput
-                                label="Frecuencia cardiaca"
-                                suffix=" lpm"
-                                value={form.frecuenciaCardiaca}
-                                onChange={(value) => setForm({ ...form, frecuenciaCardiaca: value })}
-                            />
-                            <NumberInput
-                                label="Saturación O2"
-                                suffix=" %"
-                                value={form.saturacionOxigeno}
-                                onChange={(value) => setForm({ ...form, saturacionOxigeno: value })}
-                            />
-                            <NumberInput
-                                label="Peso"
-                                suffix=" kg"
-                                decimalScale={2}
-                                value={form.pesoKg}
-                                onChange={(value) => setForm({ ...form, pesoKg: value })}
-                            />
-                            <NumberInput
-                                label="Talla"
-                                suffix=" cm"
-                                decimalScale={2}
-                                value={form.tallaCm}
-                                onChange={(value) => setForm({ ...form, tallaCm: value })}
-                            />
-                            <NumberInput
-                                label="Temperatura"
-                                suffix=" °C"
-                                decimalScale={1}
-                                value={form.temperatura}
-                                onChange={(value) => setForm({ ...form, temperatura: value })}
-                            />
-                        </SimpleGrid>
-                    </Card>
-
-                    <Card withBorder radius="md">
-                        <Text fw={700} mb="sm">Evaluación médica</Text>
-                        <Stack gap="sm">
-                            <Textarea
-                                label="Enfermedad actual"
-                                autosize
-                                minRows={3}
-                                value={form.enfermedadActual}
-                                onChange={(event) =>
-                                    setForm({ ...form, enfermedadActual: event.currentTarget.value })
-                                }
-                            />
-                            <Textarea
-                                label="Examen físico"
-                                autosize
-                                minRows={3}
-                                value={form.examenFisico}
-                                onChange={(event) =>
-                                    setForm({ ...form, examenFisico: event.currentTarget.value })
-                                }
-                            />
-                            <Textarea
-                                label="Diagnóstico"
-                                autosize
-                                minRows={2}
-                                value={form.diagnostico}
-                                onChange={(event) =>
-                                    setForm({ ...form, diagnostico: event.currentTarget.value })
-                                }
-                            />
-                            <Textarea
-                                label="Tratamiento"
-                                autosize
-                                minRows={3}
-                                value={form.tratamiento}
-                                onChange={(event) =>
-                                    setForm({ ...form, tratamiento: event.currentTarget.value })
-                                }
-                            />
-                            <Textarea
-                                label="Indicaciones"
-                                autosize
-                                minRows={2}
-                                value={form.indicaciones}
-                                onChange={(event) =>
-                                    setForm({ ...form, indicaciones: event.currentTarget.value })
-                                }
-                            />
-                            <Textarea
-                                label="Observaciones"
-                                autosize
-                                minRows={2}
-                                value={form.observaciones}
-                                onChange={(event) =>
-                                    setForm({ ...form, observaciones: event.currentTarget.value })
-                                }
-                            />
-                        </Stack>
-                    </Card>
-
-                    <Card withBorder radius="md">
-                        <Text fw={700} mb="sm">Cobro de consulta</Text>
-                        <SimpleGrid cols={{ base: 1, sm: 2 }}>
-                            <NumberInput
-                                label="Valor consulta"
-                                prefix="$"
-                                decimalScale={2}
-                                min={0}
-                                value={form.valorConsulta}
-                                onChange={(value) => setForm({ ...form, valorConsulta: value })}
-                            />
-                            <Select
-                                label="Forma de pago"
-                                data={['Efectivo', 'Transferencia', 'Tarjeta', 'Otro']}
-                                value={form.formaPago}
-                                onChange={(value) => setForm({ ...form, formaPago: value ?? 'Efectivo' })}
-                            />
-                        </SimpleGrid>
-                    </Card>
-
-                    <Group justify="flex-end">
-                        <Button variant="default" onClick={cerrarConsulta}>
-                            Cancelar
-                        </Button>
-                        <Button
-                            variant="light"
-                            onClick={() => guardarConsulta(false)}
-                            disabled={!form.pacienteId || !form.motivoConsulta}
-                        >
-                            Guardar consulta
-                        </Button>
-                        <Button
-                            leftSection={<IconNotes size={17} />}
-                            onClick={() => guardarConsulta(true)}
-                            disabled={!form.pacienteId || !form.motivoConsulta}
-                        >
-                            Guardar y emitir receta
-                        </Button>
-                    </Group>
-                </Stack>
-            </Modal>
-
-            <Modal
-                opened={pacienteOpened}
-                onClose={closePaciente}
-                title="Nuevo paciente"
-                size="lg"
-                zIndex={1001}
-            >
-                <SimpleGrid cols={{ base: 1, sm: 2 }}>
-                    <TextInput
-                        label="Identificación"
-                        required
-                        value={pacienteForm.identificacion}
-                        onChange={(event) => setPacienteForm({
-                            ...pacienteForm,
-                            identificacion: event.currentTarget.value,
-                        })}
-                    />
-                    <TextInput
-                        label="Fecha de nacimiento"
-                        type="date"
-                        value={pacienteForm.fechaNacimiento}
-                        onChange={(event) => setPacienteForm({
-                            ...pacienteForm,
-                            fechaNacimiento: event.currentTarget.value,
-                        })}
-                    />
-                    <TextInput
-                        label="Nombres"
-                        required
-                        value={pacienteForm.nombres}
-                        onChange={(event) => setPacienteForm({
-                            ...pacienteForm,
-                            nombres: event.currentTarget.value,
-                        })}
-                    />
-                    <TextInput
-                        label="Apellidos"
-                        required
-                        value={pacienteForm.apellidos}
-                        onChange={(event) => setPacienteForm({
-                            ...pacienteForm,
-                            apellidos: event.currentTarget.value,
-                        })}
-                    />
-                    <TextInput
-                        label="Teléfono"
-                        value={pacienteForm.telefono}
-                        onChange={(event) => setPacienteForm({
-                            ...pacienteForm,
-                            telefono: event.currentTarget.value,
-                        })}
-                    />
-                    <TextInput
-                        label="Correo"
-                        value={pacienteForm.email}
-                        onChange={(event) => setPacienteForm({
-                            ...pacienteForm,
-                            email: event.currentTarget.value,
-                        })}
-                    />
-                </SimpleGrid>
-
-                <Textarea
-                    mt="sm"
-                    label="Dirección"
-                    value={pacienteForm.direccion}
-                    onChange={(event) => setPacienteForm({
-                        ...pacienteForm,
-                        direccion: event.currentTarget.value,
-                    })}
-                />
-
-                <Group justify="flex-end" mt="md">
-                    <Button variant="default" onClick={closePaciente}>
-                        Cancelar
-                    </Button>
-                    <Button
-                        onClick={guardarPaciente}
-                        disabled={
-                            !pacienteForm.identificacion
-                            || !pacienteForm.nombres
-                            || !pacienteForm.apellidos
-                        }
-                    >
-                        Guardar paciente
-                    </Button>
-                </Group>
-            </Modal>
 
             <Modal
                 opened={detalleOpened}
@@ -572,8 +235,14 @@ export default function ConsultasPage() {
                                 label="Temperatura"
                                 value={consultaSeleccionada.temperatura ? `${consultaSeleccionada.temperatura} °C` : '-'}
                             />
-                            <CampoConsulta label="Presión arterial" value={consultaSeleccionada.presionArterial} />
-                            <CampoConsulta label="Frecuencia cardiaca" value={consultaSeleccionada.frecuenciaCardiaca} />
+                            <CampoConsulta
+                                label="Presión arterial"
+                                value={consultaSeleccionada.presionArterial}
+                            />
+                            <CampoConsulta
+                                label="Frecuencia cardiaca"
+                                value={consultaSeleccionada.frecuenciaCardiaca}
+                            />
                             <CampoConsulta
                                 label="Saturación O2"
                                 value={consultaSeleccionada.saturacionOxigeno ? `${consultaSeleccionada.saturacionOxigeno}%` : '-'}
@@ -582,18 +251,42 @@ export default function ConsultasPage() {
                                 label="Valor consulta"
                                 value={`$${Number(consultaSeleccionada.valorConsulta).toFixed(2)}`}
                             />
-                            <CampoConsulta label="Forma de pago" value={consultaSeleccionada.formaPago} />
+                            <CampoConsulta
+                                label="Forma de pago"
+                                value={consultaSeleccionada.formaPago}
+                            />
                         </SimpleGrid>
 
                         <Divider />
 
-                        <CampoConsulta label="Motivo de consulta" value={consultaSeleccionada.motivoConsulta} />
-                        <CampoConsulta label="Enfermedad actual" value={consultaSeleccionada.enfermedadActual} />
-                        <CampoConsulta label="Examen físico" value={consultaSeleccionada.examenFisico} />
-                        <CampoConsulta label="Diagnóstico" value={consultaSeleccionada.diagnostico} />
-                        <CampoConsulta label="Tratamiento" value={consultaSeleccionada.tratamiento} />
-                        <CampoConsulta label="Indicaciones" value={consultaSeleccionada.indicaciones} />
-                        <CampoConsulta label="Observaciones" value={consultaSeleccionada.observaciones} />
+                        <CampoConsulta
+                            label="Motivo de consulta"
+                            value={consultaSeleccionada.motivoConsulta}
+                        />
+                        <CampoConsulta
+                            label="Enfermedad actual"
+                            value={consultaSeleccionada.enfermedadActual}
+                        />
+                        <CampoConsulta
+                            label="Examen físico"
+                            value={consultaSeleccionada.examenFisico}
+                        />
+                        <CampoConsulta
+                            label="Diagnóstico"
+                            value={consultaSeleccionada.diagnostico}
+                        />
+                        <CampoConsulta
+                            label="Tratamiento"
+                            value={consultaSeleccionada.tratamiento}
+                        />
+                        <CampoConsulta
+                            label="Indicaciones"
+                            value={consultaSeleccionada.indicaciones}
+                        />
+                        <CampoConsulta
+                            label="Observaciones"
+                            value={consultaSeleccionada.observaciones}
+                        />
 
                         <Group justify="flex-end">
                             <Button
@@ -607,6 +300,85 @@ export default function ConsultasPage() {
                             </Button>
                         </Group>
                     </Stack>
+                )}
+            </Modal>
+
+            <Modal
+                opened={historialOpened}
+                onClose={closeHistorial}
+                title="Historial de atenciones"
+                size="xl"
+            >
+                {historial.length === 0 ? (
+                    <Text c="dimmed">No se encontraron pacientes con ese criterio.</Text>
+                ) : (
+                    <Accordion variant="separated">
+                        {historial.map((paciente) => (
+                            <Accordion.Item key={paciente.id} value={String(paciente.id)}>
+                                <Accordion.Control>
+                                    <Group justify="space-between" pr="md">
+                                        <div>
+                                            <Text fw={700}>
+                                                {paciente.nombres} {paciente.apellidos}
+                                            </Text>
+                                            <Text size="sm" c="dimmed">
+                                                {paciente.identificacion}
+                                            </Text>
+                                        </div>
+                                        <Badge variant="light">
+                                            {paciente.consultas.length} atención(es)
+                                        </Badge>
+                                    </Group>
+                                </Accordion.Control>
+                                <Accordion.Panel>
+                                    {paciente.consultas.length === 0 ? (
+                                        <Text c="dimmed">Este paciente aún no tiene consultas registradas.</Text>
+                                    ) : (
+                                        <Stack>
+                                            {paciente.consultas.map((consulta: any) => (
+                                                <Card key={consulta.id} withBorder radius="md">
+                                                    <Group justify="space-between" align="flex-start">
+                                                        <div>
+                                                            <Text fw={700}>
+                                                                {new Date(consulta.fechaConsulta).toLocaleString()}
+                                                            </Text>
+                                                            <Text size="sm">
+                                                                {consulta.motivoConsulta}
+                                                            </Text>
+                                                            <Text size="sm" c="dimmed">
+                                                                Diagnóstico: {consulta.diagnostico || '-'}
+                                                            </Text>
+                                                        </div>
+                                                        <Group gap="xs">
+                                                            <Button
+                                                                size="xs"
+                                                                variant="default"
+                                                                onClick={() => {
+                                                                    closeHistorial();
+                                                                    verConsulta(consulta.id);
+                                                                }}
+                                                            >
+                                                                Ver consulta
+                                                            </Button>
+                                                            {consulta.recetaId && (
+                                                                <Button
+                                                                    size="xs"
+                                                                    variant="light"
+                                                                    onClick={() => navigate(`/recetas?ver=${consulta.recetaId}`)}
+                                                                >
+                                                                    Ver receta
+                                                                </Button>
+                                                            )}
+                                                        </Group>
+                                                    </Group>
+                                                </Card>
+                                            ))}
+                                        </Stack>
+                                    )}
+                                </Accordion.Panel>
+                            </Accordion.Item>
+                        ))}
+                    </Accordion>
                 )}
             </Modal>
         </>

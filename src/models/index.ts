@@ -36,4 +36,5 @@ export interface Producto {
     stock: number;
     estado: string;
     proximaCaducidad?: string;
+    numeroLote?: string;
 }

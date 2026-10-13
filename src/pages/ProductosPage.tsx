@@ -32,6 +32,8 @@ const productoVacio = {
     precioCompra: 0,
     precioVenta: 0,
     stockMinimo: 5,
+    numeroLote: '',
+    fechaCaducidad: '',
 };
 
 export default function ProductosPage() {
@@ -58,15 +60,25 @@ export default function ProductosPage() {
 
     function editar(producto: any) {
         setEditId(producto.id);
-        setForm({ ...productoVacio, ...producto });
+        setForm({
+            ...productoVacio,
+            ...producto,
+            numeroLote: producto.numeroLote ?? '',
+            fechaCaducidad: producto.proximaCaducidad ?? '',
+        });
         open();
     }
 
     async function save() {
+        const request = {
+            ...form,
+            fechaCaducidad: form.fechaCaducidad || null,
+        };
+
         if (editId) {
-            await api.put(`/productos/${editId}`, form);
+            await api.put(`/productos/${editId}`, request);
         } else {
-            await api.post('/productos', form);
+            await api.post('/productos', request);
         }
 
         close();
@@ -307,6 +319,24 @@ export default function ProductosPage() {
                         label="Stock mínimo"
                         value={form.stockMinimo}
                         onChange={(value) => setForm({ ...form, stockMinimo: value })}
+                    />
+
+                    <TextInput
+                        label="Lote"
+                        placeholder="Ej. LOTE-2026-001"
+                        value={form.numeroLote}
+                        onChange={(event) =>
+                            setForm({ ...form, numeroLote: event.currentTarget.value })
+                        }
+                    />
+
+                    <TextInput
+                        label="Fecha de caducidad"
+                        type="date"
+                        value={form.fechaCaducidad}
+                        onChange={(event) =>
+                            setForm({ ...form, fechaCaducidad: event.currentTarget.value })
+                        }
                     />
                 </SimpleGrid>
 

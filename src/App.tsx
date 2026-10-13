@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import GlobalLoading from './components/GlobalLoading';
 import AppLayout from './layouts/AppLayout';
 import AgendaPage from './pages/AgendaPage';
+import AtencionPage from './pages/AtencionPage';
 import CajaPage from './pages/CajaPage';
 import ConsultasPage from './pages/ConsultasPage';
 import DashboardPage from './pages/DashboardPage';
@@ -34,6 +35,7 @@ export default function App() {
                 <Route element={<Protected />}>
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/agenda" element={<AgendaPage />} />
+                    <Route path="/atencion" element={<AtencionPage />} />
                     <Route path="/pacientes" element={<PacientesPage />} />
                     <Route path="/historias" element={<HistoriasClinicasPage />} />
                     <Route path="/consultas" element={<ConsultasPage />} />
