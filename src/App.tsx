@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import GlobalLoading from './components/GlobalLoading';
 import AppLayout from './layouts/AppLayout';
+import AtencionPage from './pages/AtencionPage';
 import AgendaPage from './pages/AgendaPage';
 import CajaPage from './pages/CajaPage';
 import ConsultasPage from './pages/ConsultasPage';
@@ -36,6 +37,7 @@ export default function App() {
                     <Route path="/agenda" element={<AgendaPage />} />
                     <Route path="/pacientes" element={<PacientesPage />} />
                     <Route path="/historias" element={<HistoriasClinicasPage />} />
+                    <Route path="/atencion" element={<AtencionPage />} />
                     <Route path="/consultas" element={<ConsultasPage />} />
                     <Route path="/recetas" element={<RecetasPage />} />
                     <Route path="/productos" element={<ProductosPage />} />

@@ -20,6 +20,9 @@ import { api } from '../api/api';
 import type { Producto } from '../models';
 
 const productoVacio = {
+    numeroLote: '',
+    fechaCaducidad: '',
+    stockInicial: 0,
     codigo: '',
     nombre: '',
     principioActivo: '',
@@ -69,7 +72,7 @@ export default function ProductosPage() {
         if (editId) {
             await api.put(`/productos/${editId}`, form);
         } else {
-            await api.post('/productos', form);
+            await api.post('/productos', { ...form, fechaCaducidad: form.fechaCaducidad || null });
         }
 
         close();
@@ -108,8 +111,8 @@ export default function ProductosPage() {
                 typeof responseData === 'string'
                     ? responseData
                     : responseData?.message
-                      ?? responseData?.title
-                      ?? 'No se pudo importar el archivo. Revise la plantilla e inténtelo nuevamente.',
+                    ?? responseData?.title
+                    ?? 'No se pudo importar el archivo. Revise la plantilla e inténtelo nuevamente.',
             );
         } finally {
             resetRef.current?.();
@@ -195,63 +198,63 @@ export default function ProductosPage() {
 
             <div className="table-wrapper">
                 <Table striped withTableBorder>
-                <Table.Thead>
-                    <Table.Tr>
-                        <Table.Th>Código</Table.Th>
-                        <Table.Th>Producto</Table.Th>
-                        <Table.Th>Laboratorio</Table.Th>
-                        <Table.Th>Stock</Table.Th>
-                        <Table.Th>Precio</Table.Th>
-                        <Table.Th>Estado</Table.Th>
-                        <Table.Th>Caducidad</Table.Th>
-                        <Table.Th />
-                    </Table.Tr>
-                </Table.Thead>
-
-                <Table.Tbody>
-                    {data.map((producto) => (
-                        <Table.Tr key={producto.id}>
-                            <Table.Td>{producto.codigo}</Table.Td>
-                            <Table.Td>{producto.nombre}</Table.Td>
-                            <Table.Td>{producto.laboratorio}</Table.Td>
-                            <Table.Td>{producto.stock}</Table.Td>
-                            <Table.Td>${producto.precioVenta}</Table.Td>
-                            <Table.Td>
-                                <Badge
-                                    color={
-                                        producto.estado === 'OK'
-                                            ? 'green'
-                                            : producto.estado === 'AGOTADO'
-                                              ? 'red'
-                                              : 'yellow'
-                                    }
-                                >
-                                    {producto.estado}
-                                </Badge>
-                            </Table.Td>
-                            <Table.Td>{producto.proximaCaducidad ?? '-'}</Table.Td>
-                            <Table.Td>
-                                <Group gap="xs">
-                                    <ActionIcon
-                                        variant="light"
-                                        onClick={() => editar(producto)}
-                                    >
-                                        <IconEdit size={16} />
-                                    </ActionIcon>
-
-                                    <ActionIcon
-                                        color="red"
-                                        variant="light"
-                                        onClick={() => baja(producto.id)}
-                                    >
-                                        <IconTrash size={16} />
-                                    </ActionIcon>
-                                </Group>
-                            </Table.Td>
+                    <Table.Thead>
+                        <Table.Tr>
+                            <Table.Th>Código</Table.Th>
+                            <Table.Th>Producto</Table.Th>
+                            <Table.Th>Laboratorio</Table.Th>
+                            <Table.Th>Stock</Table.Th>
+                            <Table.Th>Precio</Table.Th>
+                            <Table.Th>Estado</Table.Th>
+                            <Table.Th>Caducidad</Table.Th>
+                            <Table.Th />
                         </Table.Tr>
-                    ))}
-                </Table.Tbody>
-            </Table>
+                    </Table.Thead>
+
+                    <Table.Tbody>
+                        {data.map((producto) => (
+                            <Table.Tr key={producto.id}>
+                                <Table.Td>{producto.codigo}</Table.Td>
+                                <Table.Td>{producto.nombre}</Table.Td>
+                                <Table.Td>{producto.laboratorio}</Table.Td>
+                                <Table.Td>{producto.stock}</Table.Td>
+                                <Table.Td>${producto.precioVenta}</Table.Td>
+                                <Table.Td>
+                                    <Badge
+                                        color={
+                                            producto.estado === 'OK'
+                                                ? 'green'
+                                                : producto.estado === 'AGOTADO'
+                                                    ? 'red'
+                                                    : 'yellow'
+                                        }
+                                    >
+                                        {producto.estado}
+                                    </Badge>
+                                </Table.Td>
+                                <Table.Td>{producto.proximaCaducidad ?? '-'}</Table.Td>
+                                <Table.Td>
+                                    <Group gap="xs">
+                                        <ActionIcon
+                                            variant="light"
+                                            onClick={() => editar(producto)}
+                                        >
+                                            <IconEdit size={16} />
+                                        </ActionIcon>
+
+                                        <ActionIcon
+                                            color="red"
+                                            variant="light"
+                                            onClick={() => baja(producto.id)}
+                                        >
+                                            <IconTrash size={16} />
+                                        </ActionIcon>
+                                    </Group>
+                                </Table.Td>
+                            </Table.Tr>
+                        ))}
+                    </Table.Tbody>
+                </Table>
             </div>
 
             <Modal
@@ -358,13 +361,21 @@ export default function ProductosPage() {
                         value={form.stockMinimo}
                         onChange={(value) => setForm({ ...form, stockMinimo: value })}
                     />
+                    {!editId && <>
+                        <TextInput label="Lote inicial" value={form.numeroLote}
+                            onChange={(event) => setForm({ ...form, numeroLote: event.currentTarget.value })} />
+                        <TextInput label="Fecha de caducidad" type="date" value={form.fechaCaducidad}
+                            onChange={(event) => setForm({ ...form, fechaCaducidad: event.currentTarget.value })} />
+                        <NumberInput label="Stock inicial" min={0} value={form.stockInicial}
+                            onChange={(value) => setForm({ ...form, stockInicial: value })} />
+                    </>}
                 </SimpleGrid>
 
                 <Group justify="flex-end" mt="md">
                     <Button variant="default" onClick={close}>
                         Cancelar
                     </Button>
-                    <Button onClick={save}>Guardar</Button>
+                    <Button onClick={save} disabled={!editId && Number(form.stockInicial) > 0 && (!form.numeroLote.trim() || !form.fechaCaducidad)}>Guardar</Button>
                 </Group>
             </Modal>
         </>

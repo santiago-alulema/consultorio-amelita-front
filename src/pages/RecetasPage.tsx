@@ -286,53 +286,53 @@ export default function RecetasPage() {
 
             <div className="table-wrapper">
                 <Table striped withTableBorder highlightOnHover>
-                <Table.Thead>
-                    <Table.Tr>
-                        <Table.Th>Fecha</Table.Th>
-                        <Table.Th>Paciente</Table.Th>
-                        <Table.Th>Médico</Table.Th>
-                        <Table.Th>Medicamentos</Table.Th>
-                        <Table.Th>Acciones</Table.Th>
-                    </Table.Tr>
-                </Table.Thead>
-
-                <Table.Tbody>
-                    {data.map((receta) => (
-                        <Table.Tr key={receta.id}>
-                            <Table.Td>
-                                {new Date(receta.fechaEmision).toLocaleString()}
-                            </Table.Td>
-                            <Table.Td>{receta.paciente}</Table.Td>
-                            <Table.Td>{receta.medico}</Table.Td>
-                            <Table.Td>
-                                {receta.detalles
-                                    .map((detalle: any) => detalle.medicamento)
-                                    .join(', ')}
-                            </Table.Td>
-                            <Table.Td>
-                                <Group gap="xs">
-                                    <Button
-                                        size="xs"
-                                        variant="default"
-                                        leftSection={<IconEye size={16} />}
-                                        onClick={() => verReceta(receta.id)}
-                                    >
-                                        Ver
-                                    </Button>
-                                    <Button
-                                        size="xs"
-                                        variant="light"
-                                        leftSection={<IconPrinter size={16} />}
-                                        onClick={() => imprimirReceta(receta.id)}
-                                    >
-                                        Imprimir
-                                    </Button>
-                                </Group>
-                            </Table.Td>
+                    <Table.Thead>
+                        <Table.Tr>
+                            <Table.Th>Fecha</Table.Th>
+                            <Table.Th>Paciente</Table.Th>
+                            <Table.Th>Médico</Table.Th>
+                            <Table.Th>Medicamentos</Table.Th>
+                            <Table.Th>Acciones</Table.Th>
                         </Table.Tr>
-                    ))}
-                </Table.Tbody>
-            </Table>
+                    </Table.Thead>
+
+                    <Table.Tbody>
+                        {data.map((receta) => (
+                            <Table.Tr key={receta.id}>
+                                <Table.Td>
+                                    {new Date(receta.fechaEmision).toLocaleString()}
+                                </Table.Td>
+                                <Table.Td>{receta.paciente}</Table.Td>
+                                <Table.Td>{receta.medico}</Table.Td>
+                                <Table.Td>
+                                    {receta.detalles
+                                        .map((detalle: any) => detalle.medicamento)
+                                        .join(', ')}
+                                </Table.Td>
+                                <Table.Td>
+                                    <Group gap="xs">
+                                        <Button
+                                            size="xs"
+                                            variant="default"
+                                            leftSection={<IconEye size={16} />}
+                                            onClick={() => verReceta(receta.id)}
+                                        >
+                                            Ver
+                                        </Button>
+                                        <Button
+                                            size="xs"
+                                            variant="light"
+                                            leftSection={<IconPrinter size={16} />}
+                                            onClick={() => imprimirReceta(receta.id)}
+                                        >
+                                            Imprimir
+                                        </Button>
+                                    </Group>
+                                </Table.Td>
+                            </Table.Tr>
+                        ))}
+                    </Table.Tbody>
+                </Table>
             </div>
 
             <Modal opened={opened} onClose={cerrarModal} title="Emitir receta" size="xl">
@@ -728,8 +728,8 @@ export default function RecetasPage() {
                             {plantilla
                                 ? `Nueva plantilla: ${plantilla.name}`
                                 : configuracion.plantillaArchivo
-                                  ? `Plantilla actual: ${configuracion.plantillaArchivo}`
-                                  : 'Actualmente no hay una imagen de plantilla cargada.'}
+                                    ? `Plantilla actual: ${configuracion.plantillaArchivo}`
+                                    : 'Actualmente no hay una imagen de plantilla cargada.'}
                         </Text>
                     </div>
 

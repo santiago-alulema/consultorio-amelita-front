@@ -9,6 +9,14 @@ npm install
 npm run dev
 ```
 
+## Entornos
+
+- `npm run dev` usa `.env.development` y conecta al backend local: `https://localhost:55001/api`.
+- `npm run build` usa `.env.production` y conecta al servidor: `http://51.222.88.134:5001/api`.
+- `npm run preview` permite revisar la compilación generada en `dist`.
+
+El archivo `.env` queda reservado para variables comunes. Reinicia Vite después de modificar los archivos de entorno; para producción vuelve a ejecutar `npm run build`.
+
 ## Cambios de consultas
 
 - Botón `Ver` en la tabla de consultas.

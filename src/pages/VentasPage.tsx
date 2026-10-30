@@ -33,6 +33,7 @@ const ventaVacia = () => ({
 });
 
 export default function VentasPage() {
+    const [recibido, setRecibido] = useState<string | number>('');
     const [data, setData] = useState<any[]>([]);
     const [productos, setProductos] = useState<any[]>([]);
     const [form, setForm] = useState<any>(ventaVacia());
@@ -63,6 +64,7 @@ export default function VentasPage() {
 
     function nuevaVenta() {
         setForm(ventaVacia());
+        setRecibido('');
         open();
     }
 
@@ -95,6 +97,10 @@ export default function VentasPage() {
     }
 
     async function guardarVenta() {
+        if (form.formaPago === 'Efectivo' && Math.round(Number(recibido) * 100) < Math.round(total * 100)) {
+            return;
+        }
+
         await api.post('/ventas', {
             ...form,
             detalles: form.detalles.map((item: any) => ({
@@ -240,6 +246,20 @@ export default function VentasPage() {
                         Agregar producto
                     </Button>
 
+                    {form.formaPago === 'Efectivo' && (
+                        <Card withBorder radius="md" bg="teal.0">
+                            <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                                <NumberInput label="Efectivo recibido / billete" prefix="$" min={0} decimalScale={2}
+                                    value={recibido} onChange={setRecibido} />
+                                <div>
+                                    <Text size="sm">{Number(recibido) < total ? 'Falta por cobrar' : 'Vuelto'}</Text>
+                                    <Text fw={800} size="xl" c={Number(recibido) < total ? 'red' : 'teal'}>
+                                        $ {Math.abs((Math.round(Number(recibido) * 100) - Math.round(total * 100)) / 100).toFixed(2)}
+                                    </Text>
+                                </div>
+                            </SimpleGrid>
+                        </Card>
+                    )}
                     <Group justify="space-between" align="center">
                         <div>
                             <Text size="sm" c="dimmed">Total de la venta</Text>
@@ -250,7 +270,7 @@ export default function VentasPage() {
                             <Button variant="default" onClick={close}>Cancelar</Button>
                             <Button
                                 onClick={guardarVenta}
-                                disabled={form.detalles.some((item: any) => !item.productoId)}
+                                disabled={form.detalles.some((item: any) => !item.productoId) || (form.formaPago === 'Efectivo' && Math.round(Number(recibido) * 100) < Math.round(total * 100))}
                             >
                                 Guardar venta
                             </Button>

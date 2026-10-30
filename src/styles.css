@@ -85,3 +85,21 @@ body {
         min-width: 680px;
     }
 }
+
+/* Atención por etapas */
+.atencion-panel {
+    box-shadow: 0 8px 28px rgba(24, 58, 78, 0.06);
+    border-top: 4px solid var(--mantine-color-teal-6);
+}
+.atencion-panel .mantine-Stepper-steps {
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--mantine-color-gray-2);
+}
+.atencion-panel .mantine-Card-root {
+    background: var(--mantine-color-gray-0);
+}
+@media (max-width: 48em) {
+    .atencion-panel .mantine-Stepper-stepDescription {
+        display: none;
+    }
+}

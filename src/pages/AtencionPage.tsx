@@ -26,6 +26,7 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import SelectorDiagnostico from '../components/SelectorDiagnostico';
 import { api } from '../api/api';
 
 const pacienteVacio = {
@@ -94,6 +95,9 @@ function descargarBlob(blob: Blob, nombre: string) {
 export default function AtencionPage() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
+    const [guardando, setGuardando] = useState(false);
+    const [error, setError] = useState('');
+    const [consultaGuardadaId, setConsultaGuardadaId] = useState<number | null>(null);
     const [active, setActive] = useState(0);
     const [pacientes, setPacientes] = useState<any[]>([]);
     const [productos, setProductos] = useState<any[]>([]);
@@ -154,6 +158,20 @@ export default function AtencionPage() {
         () => pacientes.find((item) => item.id === Number(pacienteId)),
         [pacientes, pacienteId],
     );
+
+    async function ejecutarGuardado(accion: () => Promise<void>) {
+        if (guardando) return;
+        setGuardando(true);
+        setError('');
+        try {
+            await accion();
+        } catch (error: any) {
+            const mensaje = error.response?.data;
+            setError(typeof mensaje === 'string' ? mensaje : 'No se pudo completar el guardado. Revisa los datos e inténtalo nuevamente.');
+        } finally {
+            setGuardando(false);
+        }
+    }
 
     async function guardarPacienteYSiguiente() {
         if (crearPaciente) {
@@ -245,27 +263,31 @@ export default function AtencionPage() {
             .filter(Boolean)
             .join('\n');
 
-        const consultaResponse = await api.post('/consultas', {
-            ...consulta,
-            pacienteId: Number(pacienteId),
-            citaId: citaId ? Number(citaId) : null,
-            fechaConsulta: new Date().toISOString(),
-            tratamiento: tratamiento || null,
-            indicaciones: indicaciones || null,
-            pesoKg: consulta.pesoKg === '' ? null : Number(consulta.pesoKg),
-            tallaCm: consulta.tallaCm === '' ? null : Number(consulta.tallaCm),
-            temperatura: consulta.temperatura === '' ? null : Number(consulta.temperatura),
-            frecuenciaCardiaca: consulta.frecuenciaCardiaca === ''
-                ? null
-                : Number(consulta.frecuenciaCardiaca),
-            saturacionOxigeno: consulta.saturacionOxigeno === ''
-                ? null
-                : Number(consulta.saturacionOxigeno),
-            valorConsulta: Number(consulta.valorConsulta || 0),
-            presionArterial: consulta.presionArterial || null,
-        });
+        let consultaId = consultaGuardadaId;
+        if (!consultaId) {
+            const consultaResponse = await api.post('/consultas', {
+                ...consulta,
+                pacienteId: Number(pacienteId),
+                citaId: citaId ? Number(citaId) : null,
+                fechaConsulta: new Date().toISOString(),
+                tratamiento: tratamiento || null,
+                indicaciones: indicaciones || null,
+                pesoKg: consulta.pesoKg === '' ? null : Number(consulta.pesoKg),
+                tallaCm: consulta.tallaCm === '' ? null : Number(consulta.tallaCm),
+                temperatura: consulta.temperatura === '' ? null : Number(consulta.temperatura),
+                frecuenciaCardiaca: consulta.frecuenciaCardiaca === ''
+                    ? null
+                    : Number(consulta.frecuenciaCardiaca),
+                saturacionOxigeno: consulta.saturacionOxigeno === ''
+                    ? null
+                    : Number(consulta.saturacionOxigeno),
+                valorConsulta: Number(consulta.valorConsulta || 0),
+                presionArterial: consulta.presionArterial || null,
+            });
 
-        const consultaId = Number(consultaResponse.data.id);
+            consultaId = Number(consultaResponse.data.id);
+            setConsultaGuardadaId(consultaId);
+        }
 
         if (medicamentosValidos.length > 0) {
             const recetaResponse = await api.post('/recetas', {
@@ -323,14 +345,16 @@ export default function AtencionPage() {
                 </Button>
             </div>
 
+            {error && <Alert color="red" mb="md">{error}</Alert>}
+
             {citaId && (
                 <Alert mb="md" color="blue" title={`Atención vinculada a cita #${citaId}`}>
                     Al guardar la consulta, la cita quedará marcada como atendida.
                 </Alert>
             )}
 
-            <Card withBorder radius="md" p={{ base: 'md', md: 'xl' }}>
-                <Stepper active={active} onStepClick={setActive} allowNextStepsSelect={false}>
+            <Card className="atencion-panel" withBorder radius="md" p={{ base: 'md', md: 'xl' }}>
+                <Stepper active={active} onStepClick={consultaGuardadaId ? undefined : setActive} allowNextStepsSelect={false}>
                     <Stepper.Step label="Paciente" description="Datos personales">
                         <Stack mt="xl">
                             <Group justify="space-between" align="flex-end">
@@ -469,12 +493,13 @@ export default function AtencionPage() {
                             <Group justify="flex-end">
                                 <Button
                                     rightSection={<IconCheck size={16} />}
-                                    onClick={guardarPacienteYSiguiente}
+                                    loading={guardando}
+                                    onClick={() => ejecutarGuardado(guardarPacienteYSiguiente)}
                                     disabled={
                                         crearPaciente
                                             ? !pacienteForm.identificacion
-                                                || !pacienteForm.nombres
-                                                || !pacienteForm.apellidos
+                                            || !pacienteForm.nombres
+                                            || !pacienteForm.apellidos
                                             : !pacienteId
                                     }
                                 >
@@ -556,8 +581,9 @@ export default function AtencionPage() {
                                 <Button variant="default" onClick={() => setActive(0)}>
                                     Anterior
                                 </Button>
-                                <Button onClick={guardarHistoriaYSiguiente}>
-                                    Guardar y siguiente
+                                <Button loading={guardando}
+                                    onClick={() => ejecutarGuardado(guardarHistoriaYSiguiente)}>
+                                    Siguiente
                                 </Button>
                             </Group>
                         </Stack>
@@ -645,6 +671,10 @@ export default function AtencionPage() {
                                             examenFisico: event.currentTarget.value,
                                         })}
                                     />
+                                    <SelectorDiagnostico
+                                        value={consulta.diagnostico}
+                                        onChange={(diagnostico) => setConsulta((actual: any) => ({ ...actual, diagnostico }))}
+                                    />
                                     <Textarea
                                         label="Diagnóstico"
                                         autosize
@@ -676,7 +706,7 @@ export default function AtencionPage() {
                                             <Text fw={700}>Medicación e indicaciones</Text>
                                         </Group>
                                         <Text size="sm" c="dimmed">
-                                            La medicación registrada aquí se guardará como receta de esta consulta.
+                                            Receta opcional. Completa la medicación o deja los campos vacíos para continuar sin receta.
                                         </Text>
                                     </div>
                                     <Button
@@ -824,11 +854,12 @@ export default function AtencionPage() {
                             <Divider />
 
                             <Group justify="space-between">
-                                <Button variant="default" onClick={() => setActive(1)}>
+                                <Button variant="default" disabled={!!consultaGuardadaId} onClick={() => setActive(1)}>
                                     Anterior
                                 </Button>
                                 <Button
-                                    onClick={guardarAtencion}
+                                    loading={guardando}
+                                    onClick={() => ejecutarGuardado(guardarAtencion)}
                                     disabled={!consulta.motivoConsulta}
                                 >
                                     Guardar atención

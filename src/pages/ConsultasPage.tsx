@@ -24,6 +24,7 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import SelectorDiagnostico from '../components/SelectorDiagnostico';
 import { api } from '../api/api';
 
 const consultaVacia = {
@@ -85,7 +86,7 @@ export default function ConsultasPage() {
     const [detalleOpened, { open: openDetalle, close: closeDetalle }] = useDisclosure();
 
     const loadConsultas = async () => {
-        const response = await api.get('/consultas');
+        const response = await api.get('/consultas', { params: { pacienteId: searchParams.get('pacienteId') || undefined } });
         setData(response.data);
     };
 
@@ -97,19 +98,17 @@ export default function ConsultasPage() {
     useEffect(() => {
         loadConsultas();
         loadPacientes();
-    }, []);
+    }, [searchParams]);
 
     useEffect(() => {
         if (searchParams.get('nueva') !== '1') {
             return;
         }
 
-        setForm({
-            ...consultaVacia,
+        navigate('/atencion?' + new URLSearchParams({
             pacienteId: searchParams.get('pacienteId') ?? '',
-            citaId: searchParams.get('citaId'),
-        });
-        open();
+            citaId: searchParams.get('citaId') ?? '',
+        }), { replace: true });
     }, [searchParams]);
 
     function cerrarConsulta() {
@@ -121,8 +120,7 @@ export default function ConsultasPage() {
     }
 
     function nuevaConsulta() {
-        setForm(consultaVacia);
-        open();
+        navigate('/atencion');
     }
 
     function nuevoPaciente() {
@@ -196,6 +194,21 @@ export default function ConsultasPage() {
                 </Button>
             </div>
 
+            <Card withBorder radius="md" mb="md">
+                <Select
+                    label="Historial del paciente"
+                    placeholder="Buscar por cédula o nombre"
+                    searchable
+                    clearable
+                    value={searchParams.get('pacienteId')}
+                    data={pacientes.map((paciente) => ({
+                        value: String(paciente.id),
+                        label: paciente.identificacion + ' · ' + paciente.nombres + ' ' + paciente.apellidos,
+                    }))}
+                    onChange={(value) => setSearchParams(value ? { pacienteId: value } : {})}
+                />
+                {data.length === 0 && <Text c="dimmed" mt="sm">No hay atenciones registradas para esta búsqueda.</Text>}
+            </Card>
             <div className="table-wrapper">
                 <Table striped highlightOnHover>
                     <Table.Thead>
@@ -306,7 +319,7 @@ export default function ConsultasPage() {
                                 }
                             />
                             <TextInput
-                                label="Presión arterial"
+                                label="Presión arterial (opcional)"
                                 placeholder="120/80"
                                 value={form.presionArterial}
                                 onChange={(event) =>
@@ -333,7 +346,7 @@ export default function ConsultasPage() {
                                 onChange={(value) => setForm({ ...form, pesoKg: value })}
                             />
                             <NumberInput
-                                label="Talla"
+                                label="Talla (opcional)"
                                 suffix=" cm"
                                 decimalScale={2}
                                 value={form.tallaCm}
@@ -369,6 +382,10 @@ export default function ConsultasPage() {
                                 onChange={(event) =>
                                     setForm({ ...form, examenFisico: event.currentTarget.value })
                                 }
+                            />
+                            <SelectorDiagnostico
+                                value={form.diagnostico}
+                                onChange={(diagnostico) => setForm((actual: any) => ({ ...actual, diagnostico }))}
                             />
                             <Textarea
                                 label="Diagnóstico"
