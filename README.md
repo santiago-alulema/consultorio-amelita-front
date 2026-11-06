@@ -1,6 +1,6 @@
 # Consultorio Amelita - Frontend
 
-React + Vite + TypeScript + Mantine.
+Aplicación web del Consultorio Amelita con React + Vite + TypeScript + Mantine.
 
 ## Ejecutar
 

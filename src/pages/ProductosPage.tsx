@@ -43,6 +43,10 @@ export default function ProductosPage() {
     const [form, setForm] = useState<any>(productoVacio);
     const [editId, setEditId] = useState<number | null>(null);
     const [opened, { open, close }] = useDisclosure();
+    const [productoPrecio, setProductoPrecio] = useState<Producto | null>(null);
+    const [precioVenta, setPrecioVenta] = useState<string | number>('');
+    const [guardandoPrecio, setGuardandoPrecio] = useState(false);
+    const [errorPrecio, setErrorPrecio] = useState('');
     const resetRef = useRef<() => void>(null);
     const [resultadoImportacion, setResultadoImportacion] = useState<any>(null);
     const [errorImportacion, setErrorImportacion] = useState<string | null>(null);
@@ -77,6 +81,27 @@ export default function ProductosPage() {
 
         close();
         await load();
+    }
+
+    async function guardarPrecioVenta() {
+        if (!productoPrecio || precioVenta === '' || guardandoPrecio) {
+            return;
+        }
+
+        setGuardandoPrecio(true);
+        setErrorPrecio('');
+        try {
+            const nuevoPrecio = Number(precioVenta);
+            await api.patch('/productos/' + productoPrecio.id + '/precio-venta', { precioVenta: nuevoPrecio });
+            setData((actual) => actual.map((producto) => producto.id === productoPrecio.id
+                ? { ...producto, precioVenta: nuevoPrecio }
+                : producto));
+            setProductoPrecio(null);
+        } catch {
+            setErrorPrecio('No se pudo guardar el precio de venta.');
+        } finally {
+            setGuardandoPrecio(false);
+        }
     }
 
     async function baja(id: number) {
@@ -218,7 +243,18 @@ export default function ProductosPage() {
                                 <Table.Td>{producto.nombre}</Table.Td>
                                 <Table.Td>{producto.laboratorio}</Table.Td>
                                 <Table.Td>{producto.stock}</Table.Td>
-                                <Table.Td>${producto.precioVenta}</Table.Td>
+                                <Table.Td>
+                                    <Group gap="xs">
+                                        <Text>&#36;{producto.precioVenta}</Text>
+                                        <Button size="compact-xs" variant="light" onClick={() => {
+                                            setProductoPrecio(producto);
+                                            setPrecioVenta(producto.precioVenta);
+                                            setErrorPrecio('');
+                                        }}>
+                                            Editar precio
+                                        </Button>
+                                    </Group>
+                                </Table.Td>
                                 <Table.Td>
                                     <Badge
                                         color={

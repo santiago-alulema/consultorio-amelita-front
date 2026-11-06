@@ -1,4 +1,5 @@
 import {
+    Alert,
     Badge,
     Button,
     Card,
@@ -18,6 +19,9 @@ import { api } from '../api/api';
 
 export default function SriPage() {
     const [data, setData] = useState<any[]>([]);
+    const [factura, setFactura] = useState<any>(null);
+    const [cargandoRide, setCargandoRide] = useState(false);
+    const [errorRide, setErrorRide] = useState('');
     const [productos, setProductos] = useState<any[]>([]);
     const [xml, setXml] = useState<File | null>(null);
     const [pdf, setPdf] = useState<File | null>(null);
@@ -70,6 +74,25 @@ export default function SriPage() {
         await load();
     }
 
+    async function abrirRide(id: number) {
+        setErrorRide('');
+        setCargandoRide(true);
+        try {
+            const respuesta = await api.get('/documentos-sri/' + id + '/ride', { responseType: 'blob' });
+            const url = URL.createObjectURL(respuesta.data);
+            const enlace = document.createElement('a');
+            enlace.href = url;
+            enlace.target = '_blank';
+            enlace.rel = 'noopener noreferrer';
+            enlace.click();
+            window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        } catch {
+            setErrorRide('El archivo RIDE no está disponible.');
+        } finally {
+            setCargandoRide(false);
+        }
+    }
+
     return (
         <>
             <div className="page-header">
@@ -104,16 +127,24 @@ export default function SriPage() {
                                 </Text>
                             </div>
 
-                            <Button
-                                size="sm"
-                                variant={documento.inventarioProcesado ? 'default' : 'light'}
-                                disabled={documento.inventarioProcesado}
-                                onClick={() => procesarStock(documento.id)}
-                            >
-                                {documento.inventarioProcesado
-                                    ? 'Inventario actualizado'
-                                    : 'Descontar stock'}
-                            </Button>
+                            <Group gap="xs">
+                                <Button size="sm" variant="default" onClick={() => {
+                                    setErrorRide('');
+                                    setFactura(documento);
+                                }}>
+                                    Ver factura
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant={documento.inventarioProcesado ? 'default' : 'light'}
+                                    disabled={documento.inventarioProcesado}
+                                    onClick={() => procesarStock(documento.id)}
+                                >
+                                    {documento.inventarioProcesado
+                                        ? 'Inventario actualizado'
+                                        : 'Descontar stock'}
+                                </Button>
+                            </Group>
                         </Group>
 
                         <div className="table-wrapper">
@@ -164,6 +195,53 @@ export default function SriPage() {
                     </Card>
                 )}
             </Stack>
+
+            <Modal
+                opened={!!factura}
+                onClose={() => { if (!cargandoRide) setFactura(null); }}
+                title={factura ? 'Factura ' + factura.numeroFactura : 'Factura'}
+                size="xl"
+            >
+                {factura && (
+                    <Stack>
+                        <Text><b>Emisor</b> {factura.razonSocialEmisor} · {factura.rucEmisor}</Text>
+                        <Text><b>Fecha</b> {new Date(factura.fechaEmision).toLocaleDateString()}</Text>
+                        <Text><b>Comprador</b> {factura.identificacionComprador || '—'}</Text>
+                        <Text style={{ overflowWrap: 'anywhere' }}><b>Clave de acceso</b> {factura.claveAcceso}</Text>
+                        <Table.ScrollContainer minWidth={480}>
+                            <Table striped>
+                                <Table.Thead>
+                                    <Table.Tr>
+                                        <Table.Th>Descripción</Table.Th>
+                                        <Table.Th>Cantidad</Table.Th>
+                                        <Table.Th>Precio unitario</Table.Th>
+                                        <Table.Th>Subtotal</Table.Th>
+                                    </Table.Tr>
+                                </Table.Thead>
+                                <Table.Tbody>
+                                    {factura.detalles.map((detalle: any) => (
+                                        <Table.Tr key={detalle.id}>
+                                            <Table.Td>{detalle.descripcion}</Table.Td>
+                                            <Table.Td>{detalle.cantidad}</Table.Td>
+                                            <Table.Td>&#36;{detalle.precioUnitario}</Table.Td>
+                                            <Table.Td>&#36;{Number(detalle.precioTotalSinImpuesto).toFixed(2)}</Table.Td>
+                                        </Table.Tr>
+                                    ))}
+                                </Table.Tbody>
+                            </Table>
+                        </Table.ScrollContainer>
+                        <Group justify="space-between">
+                            <Text fw={700}>Total &#36;{Number(factura.total).toFixed(2)}</Text>
+                            {factura.ridePdfPath && (
+                                <Button loading={cargandoRide} onClick={() => abrirRide(factura.id)}>
+                                    Abrir RIDE
+                                </Button>
+                            )}
+                        </Group>
+                        {errorRide && <Alert color="red">{errorRide}</Alert>}
+                    </Stack>
+                )}
+            </Modal>
 
             <Modal opened={opened} onClose={close} title="Subir XML y RIDE" centered>
                 <Stack>

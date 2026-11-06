@@ -288,6 +288,7 @@ export default function RecetasPage() {
                 <Table striped withTableBorder highlightOnHover>
                     <Table.Thead>
                         <Table.Tr>
+                            <Table.Th>N.º receta</Table.Th>
                             <Table.Th>Fecha</Table.Th>
                             <Table.Th>Paciente</Table.Th>
                             <Table.Th>Médico</Table.Th>
@@ -299,6 +300,7 @@ export default function RecetasPage() {
                     <Table.Tbody>
                         {data.map((receta) => (
                             <Table.Tr key={receta.id}>
+                                <Table.Td>{String(receta.secuencial).padStart(6, '0')}</Table.Td>
                                 <Table.Td>
                                     {new Date(receta.fechaEmision).toLocaleString()}
                                 </Table.Td>
@@ -511,7 +513,9 @@ export default function RecetasPage() {
             <Modal
                 opened={detalleOpened}
                 onClose={closeDetalle}
-                title="Detalle de receta"
+                title={recetaSeleccionada
+                    ? 'Receta N.º ' + String(recetaSeleccionada.secuencial).padStart(6, '0')
+                    : 'Detalle de receta'}
                 size="lg"
             >
                 {recetaSeleccionada && (

@@ -188,6 +188,16 @@ export default function VentasPage() {
                         />
                     </SimpleGrid>
 
+                    <Group>
+                        <Button variant="light" onClick={() => setForm({
+                            ...form,
+                            identificacionCliente: '9999999999',
+                            nombreCliente: 'Consumidor final',
+                        })}>
+                            Consumidor final
+                        </Button>
+                    </Group>
+
                     {form.detalles.map((detalle: any, index: number) => (
                         <Card key={index} withBorder radius="md">
                             <SimpleGrid cols={{ base: 1, sm: 4 }}>
